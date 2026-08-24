@@ -1,3 +1,4 @@
 zowe.config.json
+application.local.json
 .zowe/
 __pycache__/

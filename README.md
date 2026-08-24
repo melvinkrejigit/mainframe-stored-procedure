@@ -23,14 +23,12 @@ The first Azure DevOps step uses `scripts/validate_sql.py` to automatically disc
 
 After validation, the pipeline prepares every `.sql` file as 80-character fixed records. SQL must fit in columns 1-72; the remaining columns are padded with spaces. Zowe CLI then uploads the prepared directory with `dir-to-uss --encoding "IBM-1047"`, so Zowe performs the EBCDIC conversion. The original filename is preserved and uploaded to `/z/z80145/<filename>`.
 
-The repository contains `zowe.config.json.example` as a connection template. The actual `zowe.config.json` is generated temporarily during the Azure run from secret variables.
+The repository contains `application.json` as the non-secret connection configuration. The actual `zowe.config.json` is generated temporarily during the Azure run from `application.json` plus the secret password.
 
 Create an Azure DevOps variable group named `mainframe-devops` or add pipeline variables with these names:
 
-- `MAINFRAME_HOST`: `204.90.115.200`
-- `MAINFRAME_USER`: your mainframe user ID
 - `MAINFRAME_PASSWORD`: secret variable
-- `ZOSMF_PORT`: `10443`
-- `ZOSMF_REJECT_UNAUTHORIZED`: `false` only for a controlled test system with a certificate exception
+
+Host, port, and user ID are configured in `application.json`. `MAINFRAME_PASSWORD` is intentionally the only Azure variable because passwords must not be committed to GitHub.
 
 The pipeline creates a temporary Zowe config during the run. Do not commit `~/.zowe/zowe.config.json`, usernames, or passwords to GitHub. Rotate the password that was shared in chat because it is now exposed.

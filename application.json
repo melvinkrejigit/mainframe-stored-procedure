@@ -1,0 +1,9 @@
+{
+  "zowe": {
+    "host": "204.90.115.200",
+    "port": 10443,
+    "user": "Z80145",
+    "passwordEnv": "MAINFRAME_PASSWORD",
+    "rejectUnauthorized": false
+  }
+}

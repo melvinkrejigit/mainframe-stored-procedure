@@ -41,21 +41,14 @@ steps:
 - script: |
     set -euo pipefail
     npm install --global @zowe/cli
-    python scripts/create_zowe_config.py "$(Build.ArtifactStagingDirectory)/zowe.config.json"
+    python scripts/create_zowe_config.py application.json "$(Build.ArtifactStagingDirectory)/zowe.config.json"
     export ZOWE_CLI_HOME="$(Build.ArtifactStagingDirectory)/zowe-home"
     mkdir -p "$ZOWE_CLI_HOME"
     cp "$(Build.ArtifactStagingDirectory)/zowe.config.json" "$ZOWE_CLI_HOME/zowe.config.json"
-    find "$(Build.ArtifactStagingDirectory)/prepared" -type f -name '*.sql' -print0 |
-      while IFS= read -r -d '' prepared_file; do
-      done
     zowe zos-files upload dir-to-uss "$(Build.ArtifactStagingDirectory)/prepared" "/z/z80145" --encoding "IBM-1047"
   displayName: Upload SQL files to USS with Zowe
   env:
-    MAINFRAME_HOST: $(MAINFRAME_HOST)
-    MAINFRAME_USER: $(MAINFRAME_USER)
     MAINFRAME_PASSWORD: $(MAINFRAME_PASSWORD)
-    ZOSMF_PORT: $(ZOSMF_PORT)
-    ZOSMF_REJECT_UNAUTHORIZED: $(ZOSMF_REJECT_UNAUTHORIZED)
 
 - script: |
     echo "Azure DevOps pipeline triggered successfully"
