@@ -25,6 +25,39 @@ steps:
   displayName: Validate DB2 SQL
 
 - script: |
+    set -euo pipefail
+    mkdir -p "$(Build.ArtifactStagingDirectory)/prepared"
+    while IFS= read -r -d '' sql_file; do
+      output_file="$(Build.ArtifactStagingDirectory)/prepared/$(basename "$sql_file")"
+      python scripts/prepare_fb80.py "$sql_file" "$output_file"
+    done < <(find . -path './.git' -prune -o -type f -name '*.sql' -print0)
+  displayName: Prepare SQL files as EBCDIC FB80
+
+- task: NodeTool@0
+  inputs:
+    versionSpec: '20.x'
+  displayName: Use Node.js for Zowe CLI
+
+- script: |
+    set -euo pipefail
+    npm install --global @zowe/cli
+    python scripts/create_zowe_config.py "$(Build.ArtifactStagingDirectory)/zowe.config.json"
+    export ZOWE_CLI_HOME="$(Build.ArtifactStagingDirectory)/zowe-home"
+    mkdir -p "$ZOWE_CLI_HOME"
+    cp "$(Build.ArtifactStagingDirectory)/zowe.config.json" "$ZOWE_CLI_HOME/zowe.config.json"
+    find "$(Build.ArtifactStagingDirectory)/prepared" -type f -name '*.sql' -print0 |
+      while IFS= read -r -d '' prepared_file; do
+        zowe zos-files upload file-to-uss "$prepared_file" "/z/z80145/$(basename "$prepared_file")" --binary
+      done
+  displayName: Upload SQL files to USS with Zowe
+  env:
+    MAINFRAME_HOST: $(MAINFRAME_HOST)
+    MAINFRAME_USER: $(MAINFRAME_USER)
+    MAINFRAME_PASSWORD: $(MAINFRAME_PASSWORD)
+    ZOSMF_PORT: $(ZOSMF_PORT)
+    ZOSMF_REJECT_UNAUTHORIZED: $(ZOSMF_REJECT_UNAUTHORIZED)
+
+- script: |
     echo "Azure DevOps pipeline triggered successfully"
     echo "Branch: $(Build.SourceBranch)"
     echo "Commit: $(Build.SourceVersion)"
