@@ -10,6 +10,9 @@ pr:
       - feature/*
       - develop
 
+variables:
+- group: mainframe-devops
+
 pool:
   vmImage: ubuntu-latest
 
