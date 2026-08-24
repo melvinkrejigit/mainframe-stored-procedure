@@ -1,0 +1,27 @@
+{
+  "$schema": "./zowe.schema.json",
+  "profiles": {
+    "zosmf": {
+      "type": "zosmf",
+      "properties": {
+        "port": 10443
+      },
+      "secure": []
+    },
+    "global_base": {
+      "type": "base",
+      "properties": {
+        "host": "204.90.115.200",
+        "rejectUnauthorized": false
+      },
+      "secure": [
+        "user",
+        "password"
+      ]
+    }
+  },
+  "defaults": {
+    "zosmf": "zosmf",
+    "base": "global_base"
+  }
+}

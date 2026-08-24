@@ -21,7 +21,9 @@ The first Azure DevOps step uses `scripts/validate_sql.py` to automatically disc
 
 ## USS upload configuration
 
-After validation, the pipeline converts every `.sql` file to EBCDIC IBM-037 fixed records with LRECL 80. Each source line must be at most 72 characters and is padded with EBCDIC blanks to 80 bytes. The original filename is preserved and uploaded to `/z/z80145/<filename>` using Zowe CLI with `--binary`.
+After validation, the pipeline prepares every `.sql` file as 80-character fixed records. SQL must fit in columns 1-72; the remaining columns are padded with spaces. Zowe CLI then uploads the prepared directory with `dir-to-uss --encoding "IBM-1047"`, so Zowe performs the EBCDIC conversion. The original filename is preserved and uploaded to `/z/z80145/<filename>`.
+
+The repository contains `zowe.config.json.example` as a connection template. The actual `zowe.config.json` is generated temporarily during the Azure run from secret variables.
 
 Create an Azure DevOps variable group named `mainframe-devops` or add pipeline variables with these names:
 
