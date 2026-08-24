@@ -12,3 +12,4 @@ FROM SYSIBM.SYSDUMMY1;
 ```
 
 Stored procedure source, JCL, Zowe integration, and Azure DevOps pipeline configuration will be added in later steps.
+Azure trigger test
