@@ -25,7 +25,7 @@ steps:
   displayName: Use Python for SQL validation
 
 - script: python scripts/validate_sql.py
-  displayName: Validate DB2 SQL
+  displayName: Validate all DB2 SQL files
 
 - script: |
     set -euo pipefail
