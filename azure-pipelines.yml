@@ -1,0 +1,23 @@
+trigger:
+  branches:
+    include:
+      - feature/*
+      - develop
+
+pr:
+  branches:
+    include:
+      - feature/*
+      - develop
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+- checkout: self
+
+- script: |
+    echo "Azure DevOps pipeline triggered successfully"
+    echo "Branch: $(Build.SourceBranch)"
+    echo "Commit: $(Build.SourceVersion)"
+  displayName: Verify GitHub trigger
