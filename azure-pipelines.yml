@@ -16,6 +16,14 @@ pool:
 steps:
 - checkout: self
 
+- task: UsePythonVersion@0
+  inputs:
+    versionSpec: '3.x'
+  displayName: Use Python for SQL validation
+
+- script: python scripts/validate_sql.py current-timestamp.sql
+  displayName: Validate DB2 SQL
+
 - script: |
     echo "Azure DevOps pipeline triggered successfully"
     echo "Branch: $(Build.SourceBranch)"
