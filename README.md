@@ -17,4 +17,4 @@ Automatic trigger test
 
 ## Pipeline validation
 
-The first Azure DevOps step uses `scripts/validate_sql.py` to validate `current-timestamp.sql` before any later deployment work. It requires a non-empty DB2 `SELECT` statement ending in `;` and checks for `CURRENT TIMESTAMP` from `SYSIBM.SYSDUMMY1`.
+The first Azure DevOps step uses `scripts/validate_sql.py` to automatically discover and validate every `*.sql` file in the repository before any later deployment work. It requires non-empty SQL, a terminating `;`, and a supported DB2 statement keyword. Add or remove SQL files without changing the pipeline YAML.

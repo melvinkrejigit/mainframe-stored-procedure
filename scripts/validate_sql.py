@@ -1,9 +1,22 @@
-"""Validate the initial DB2 SQL source before later deployment stages."""
+"""Validate every DB2 SQL source file before later deployment stages."""
 import re
 import sys
 from pathlib import Path
 
-SUPPORTED_STATEMENTS = {"SELECT"}
+SUPPORTED_STATEMENTS = {
+    "ALTER",
+    "BEGIN",
+    "CALL",
+    "CREATE",
+    "DECLARE",
+    "DELETE",
+    "END",
+    "INSERT",
+    "MERGE",
+    "SELECT",
+    "SET",
+    "UPDATE",
+}
 
 
 def validate_sql(path: Path) -> None:
@@ -26,18 +39,22 @@ def validate_sql(path: Path) -> None:
             keyword = match.group(1).upper() if match else "unknown"
             raise ValueError(f"Unsupported SQL statement: {keyword}")
 
-    normalized = " ".join(without_comments.upper().split())
-    if "CURRENT TIMESTAMP" not in normalized:
-        raise ValueError("Expected CURRENT TIMESTAMP expression")
-    if "SYSIBM.SYSDUMMY1" not in normalized:
-        raise ValueError("Expected SYSIBM.SYSDUMMY1 table")
+
+def sql_files(paths):
+    if paths:
+        return [Path(path) for path in paths]
+    return sorted(
+        path for path in Path(".").rglob("*.sql") if ".git" not in path.parts
+    )
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        raise SystemExit("usage: validate_sql.py <sql-file>")
+    files = sql_files(sys.argv[1:])
+    if not files:
+        raise SystemExit("SQL validation failed: no .sql files found")
     try:
-        validate_sql(Path(sys.argv[1]))
+        for path in files:
+            validate_sql(path)
+            print(f"SQL validation passed: {path}")
     except (OSError, ValueError) as error:
         raise SystemExit(f"SQL validation failed: {error}")
-    print(f"SQL validation passed: {sys.argv[1]}")

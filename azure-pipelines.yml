@@ -21,7 +21,7 @@ steps:
     versionSpec: '3.x'
   displayName: Use Python for SQL validation
 
-- script: python scripts/validate_sql.py current-timestamp.sql
+- script: python scripts/validate_sql.py
   displayName: Validate DB2 SQL
 
 - script: |
