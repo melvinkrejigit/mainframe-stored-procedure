@@ -87,10 +87,10 @@ steps:
 
 - script: |
     set -euo pipefail
-  python scripts/create_zowe_config.py application.json "$(Build.ArtifactStagingDirectory)/zowe.config.json"
+    python scripts/create_zowe_config.py application.json "$(Build.ArtifactStagingDirectory)/zowe.config.json"
     export ZOWE_CLI_HOME="$(Build.ArtifactStagingDirectory)/zowe-home"
-  mkdir -p "$ZOWE_CLI_HOME"
-  cp "$(Build.ArtifactStagingDirectory)/zowe.config.json" "$ZOWE_CLI_HOME/zowe.config.json"
+    mkdir -p "$ZOWE_CLI_HOME"
+    cp "$(Build.ArtifactStagingDirectory)/zowe.config.json" "$ZOWE_CLI_HOME/zowe.config.json"
     sql_template=$(python -c 'import json; print(json.load(open("application.json"))["sqlDeployment"]["jclTemplate"])')
     uss_directory=$(python -c 'import json; print(json.load(open("application.json"))["sqlDeployment"]["ussDirectory"])')
     mkdir -p "$(Build.ArtifactStagingDirectory)/execute"
