@@ -74,11 +74,35 @@ steps:
     set -euo pipefail
     npm install --global @zowe/cli
     python scripts/create_zowe_config.py application.json "$(Build.ArtifactStagingDirectory)/zowe.config.json"
+    uss_directory=$(python -c 'import json; print(json.load(open("application.json"))["sqlDeployment"]["ussDirectory"])')
     export ZOWE_CLI_HOME="$(Build.ArtifactStagingDirectory)/zowe-home"
     mkdir -p "$ZOWE_CLI_HOME"
     cp "$(Build.ArtifactStagingDirectory)/zowe.config.json" "$ZOWE_CLI_HOME/zowe.config.json"
-    zowe zos-files upload dir-to-uss "$(Build.ArtifactStagingDirectory)/prepared" "/z/z80145" --encoding "IBM-1047"
+    echo "+ zowe zos-files upload dir-to-uss $(Build.ArtifactStagingDirectory)/prepared $uss_directory --encoding IBM-1047"
+    zowe zos-files upload dir-to-uss "$(Build.ArtifactStagingDirectory)/prepared" "$uss_directory" --encoding "IBM-1047" 2>&1 | tee "$(Build.ArtifactStagingDirectory)/upload-response.log"
   displayName: Upload SQL files to USS with Zowe
+  timeoutInMinutes: 10
+  env:
+    MAINFRAME_PASSWORD: $(MAINFRAME_PASSWORD)
+
+- script: |
+    set -euo pipefail
+  python scripts/create_zowe_config.py application.json "$(Build.ArtifactStagingDirectory)/zowe.config.json"
+    export ZOWE_CLI_HOME="$(Build.ArtifactStagingDirectory)/zowe-home"
+  mkdir -p "$ZOWE_CLI_HOME"
+  cp "$(Build.ArtifactStagingDirectory)/zowe.config.json" "$ZOWE_CLI_HOME/zowe.config.json"
+    sql_template=$(python -c 'import json; print(json.load(open("application.json"))["sqlDeployment"]["jclTemplate"])')
+    uss_directory=$(python -c 'import json; print(json.load(open("application.json"))["sqlDeployment"]["ussDirectory"])')
+    mkdir -p "$(Build.ArtifactStagingDirectory)/execute"
+    while IFS= read -r -d '' prepared_file; do
+      file_name=$(basename "$prepared_file")
+      uss_path="$uss_directory/$file_name"
+      run_jcl="$(Build.ArtifactStagingDirectory)/execute/$file_name.jcl"
+      python scripts/render_sql_jcl.py "$sql_template" "$uss_path" "$run_jcl"
+      echo "+ zowe zos-jobs submit local-file $run_jcl --wfo true --vasc --rfj"
+      zowe zos-jobs submit local-file "$run_jcl" --wfo true --vasc --rfj 2>&1 | tee "$(Build.ArtifactStagingDirectory)/execute/$file_name-response.json"
+    done < <(find "$(Build.ArtifactStagingDirectory)/prepared" -type f -name '*.sql' -print0)
+  displayName: Submit generic DSNTEP2 JCL for uploaded SQL
   timeoutInMinutes: 10
   env:
     MAINFRAME_PASSWORD: $(MAINFRAME_PASSWORD)

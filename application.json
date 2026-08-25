@@ -9,5 +9,9 @@
   "versionCheck": {
     "query": "SELECT 'V1' FROM SYSIBM.SYSDUMMY1;",
     "jclTemplate": "jcl/version-check.jcl"
+  },
+  "sqlDeployment": {
+    "ussDirectory": "/z/z80145",
+    "jclTemplate": "jcl/execute-sql.jcl"
   }
 }
