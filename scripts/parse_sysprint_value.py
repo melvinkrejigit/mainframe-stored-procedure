@@ -7,7 +7,11 @@ if len(sys.argv) != 2:
     raise SystemExit("usage: parse_sysprint_value.py <sysprint-file>")
 
 content = Path(sys.argv[1]).read_text(encoding="utf-8", errors="replace")
-matches = [value.strip() for value in re.findall(r"\|([^|]+)\|", content)]
+matches = [
+    value.strip()
+    for value in re.findall(r"\|([^|]+)\|", content)
+    if value.strip()
+]
 if not matches:
     raise SystemExit("No pipe-delimited value found in SYSPRINT")
 values = set(matches)
