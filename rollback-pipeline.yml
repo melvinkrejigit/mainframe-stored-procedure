@@ -34,14 +34,17 @@ stages:
       displayName: Use Node.js for Zowe CLI
     - script: |
         set -euo pipefail
+        app_file="$(Build.SourcesDirectory)/application.json"
+        test -f "$app_file" || { echo "application.json not found at $app_file on $(Build.SourceBranch)"; exit 1; }
+        echo "Using application config: $app_file"
         npm install --global @zowe/cli
         mkdir -p "$(Build.ArtifactStagingDirectory)/rollback"
-        python scripts/create_zowe_config.py application.json "$(Build.ArtifactStagingDirectory)/zowe.config.json"
+        python "$(Build.SourcesDirectory)/scripts/create_zowe_config.py" "$app_file" "$(Build.ArtifactStagingDirectory)/zowe.config.json"
         export ZOWE_CLI_HOME="$(Build.ArtifactStagingDirectory)/zowe-home"
         mkdir -p "$ZOWE_CLI_HOME"
         cp "$(Build.ArtifactStagingDirectory)/zowe.config.json" "$ZOWE_CLI_HOME/zowe.config.json"
-        rollback_template=$(python -c 'import json; print(json.load(open("application.json"))["rollback"]["jclTemplate"])')
-        python scripts/render_version_jcl.py application.json "$rollback_template" "$(Build.ArtifactStagingDirectory)/rollback/rollback-date-run.jcl" rollbackQuery rollback
+        rollback_template=$(python -c 'import json, os; app=os.environ["APP_FILE"]; print(os.path.join(os.path.dirname(app), json.load(open(app))["rollback"]["jclTemplate"]))')
+        python "$(Build.SourcesDirectory)/scripts/render_version_jcl.py" "$app_file" "$rollback_template" "$(Build.ArtifactStagingDirectory)/rollback/rollback-date-run.jcl" rollbackQuery rollback
         echo "+ zowe zos-jobs submit local-file rollback-date-run.jcl --wfo true --rfj"
         zowe zos-jobs submit local-file "$(Build.ArtifactStagingDirectory)/rollback/rollback-date-run.jcl" --wfo true --rfj 2>&1 | tee "$(Build.ArtifactStagingDirectory)/rollback/submit-response.json"
         echo "+ python scripts/extract_job_id.py submit-response.json"
@@ -58,6 +61,7 @@ stages:
       timeoutInMinutes: 10
       env:
         MAINFRAME_PASSWORD: $(MAINFRAME_PASSWORD)
+        APP_FILE: $(Build.SourcesDirectory)/application.json
 
 - stage: RollbackNotRequested
   displayName: Rollback not requested
