@@ -44,7 +44,7 @@ stages:
         mkdir -p "$ZOWE_CLI_HOME"
         cp "$(Build.ArtifactStagingDirectory)/zowe.config.json" "$ZOWE_CLI_HOME/zowe.config.json"
         rollback_template=$(python -c 'import json, os; app=os.environ["APP_FILE"]; print(os.path.join(os.path.dirname(app), json.load(open(app))["rollback"]["jclTemplate"]))')
-        python "$(Build.SourcesDirectory)/scripts/render_version_jcl.py" "$app_file" "$rollback_template" "$(Build.ArtifactStagingDirectory)/rollback/rollback-date-run.jcl" rollbackQuery rollback
+        python "$(Build.SourcesDirectory)/scripts/render_version_jcl.py" "$app_file" "$rollback_template" "$(Build.ArtifactStagingDirectory)/rollback/rollback-date-run.jcl" query rollback
         echo "+ zowe zos-jobs submit local-file rollback-date-run.jcl --wfo true --rfj"
         zowe zos-jobs submit local-file "$(Build.ArtifactStagingDirectory)/rollback/rollback-date-run.jcl" --wfo true --rfj 2>&1 | tee "$(Build.ArtifactStagingDirectory)/rollback/submit-response.json"
         echo "+ python scripts/extract_job_id.py submit-response.json"
