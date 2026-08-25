@@ -3,15 +3,16 @@ import json
 import sys
 from pathlib import Path
 
-if len(sys.argv) != 4:
+if len(sys.argv) not in (4, 5):
     raise SystemExit(
         "usage: render_version_jcl.py <application.json> <template.jcl> <output.jcl>"
     )
 
 application = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-query = application.get("versionCheck", {}).get("query", "").strip()
+query_key = sys.argv[4] if len(sys.argv) == 5 else "query"
+query = application.get("versionCheck", {}).get(query_key, "").strip()
 if not query:
-    raise SystemExit("application.json is missing versionCheck.query")
+    raise SystemExit(f"application.json is missing versionCheck.{query_key}")
 if "\r" in query or "\n" in query:
     raise SystemExit("versionCheck.query must be a single line")
 if len(query) > 72:

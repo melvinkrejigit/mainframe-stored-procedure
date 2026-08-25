@@ -8,7 +8,10 @@
   },
   "versionCheck": {
     "query": "SELECT 'V1' FROM SYSIBM.SYSDUMMY1;",
-    "jclTemplate": "jcl/version-check.jcl"
+    "jclTemplate": "jcl/version-check.jcl",
+    "testQuery": "SELECT 'V2' FROM SYSIBM.SYSDUMMY1;",
+    "testJclTemplate": "jcl/test-version.jcl",
+    "expectedTestVersion": "V2"
   },
   "sqlDeployment": {
     "ussDirectory": "/z/z80145",

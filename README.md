@@ -29,6 +29,8 @@ The version-check stage reads `versionCheck.query` from `application.json`, rend
 
 After the upload, the pipeline reads `sqlDeployment.ussDirectory` and `sqlDeployment.jclTemplate` from `application.json`, renders the USS path of every prepared SQL file into `jcl/execute-sql.jcl`, and submits one generic DSNTEP2 job per SQL file. The template uses `SYSIN DD PATH='...'` with `RECFM=FB,LRECL=80`.
 
+After deployment, the `AutomatedTest` stage renders `versionCheck.testQuery` into `jcl/test-version.jcl`, submits it with Zowe, retrieves status and all spool content by job ID, parses `SYSPRINT`, and asserts that the result equals `versionCheck.expectedTestVersion` (`V2`).
+
 Create an Azure DevOps variable group named `mainframe-devops` or add pipeline variables with these names:
 
 - `MAINFRAME_PASSWORD`: secret variable

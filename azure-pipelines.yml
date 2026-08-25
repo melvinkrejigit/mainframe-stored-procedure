@@ -142,3 +142,54 @@ stages:
         echo "Branch: $(Build.SourceBranch)"
         echo "Commit: $(Build.SourceVersion)"
       displayName: Verify GitHub trigger
+
+- stage: AutomatedTest
+  displayName: Automated DB2 version test
+  dependsOn: Deploy
+  condition: succeeded()
+  jobs:
+  - job: TestVersion
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+    - checkout: self
+    - task: UsePythonVersion@0
+      inputs:
+        versionSpec: '3.x'
+      displayName: Use Python for test scripts
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '20.x'
+      displayName: Use Node.js for Zowe CLI
+    - script: |
+        set -euo pipefail
+        npm install --global @zowe/cli
+        mkdir -p "$(Build.ArtifactStagingDirectory)/test"
+        python scripts/create_zowe_config.py application.json "$(Build.ArtifactStagingDirectory)/zowe.config.json"
+        export ZOWE_CLI_HOME="$(Build.ArtifactStagingDirectory)/zowe-home"
+        mkdir -p "$ZOWE_CLI_HOME"
+        cp "$(Build.ArtifactStagingDirectory)/zowe.config.json" "$ZOWE_CLI_HOME/zowe.config.json"
+        test_template=$(python -c 'import json; print(json.load(open("application.json"))["versionCheck"]["testJclTemplate"])')
+        python scripts/render_version_jcl.py application.json "$test_template" "$(Build.ArtifactStagingDirectory)/test/test-version-run.jcl" testQuery
+        echo "+ zowe zos-jobs submit local-file test-version-run.jcl --wfo true --rfj"
+        zowe zos-jobs submit local-file "$(Build.ArtifactStagingDirectory)/test/test-version-run.jcl" --wfo true --rfj 2>&1 | tee "$(Build.ArtifactStagingDirectory)/test/submit-response.json"
+        echo "+ python scripts/extract_job_id.py submit-response.json"
+        job_id=$(python scripts/extract_job_id.py "$(Build.ArtifactStagingDirectory)/test/submit-response.json")
+        echo "Automated test job ID: $job_id"
+        echo "+ zowe zos-jobs view job-status-by-jobid $job_id --rfj"
+        zowe zos-jobs view job-status-by-jobid "$job_id" --rfj 2>&1 | tee "$(Build.ArtifactStagingDirectory)/test/job-status.json"
+        echo "+ zowe zos-jobs view all-spool-content $job_id --rfj"
+        zowe zos-jobs view all-spool-content "$job_id" --rfj 2>&1 | tee "$(Build.ArtifactStagingDirectory)/test/job-log.json"
+        echo "+ python scripts/parse_sysprint.py job-log.json"
+        actual_version=$(python scripts/parse_sysprint.py "$(Build.ArtifactStagingDirectory)/test/job-log.json")
+        expected_version=$(python -c 'import json; print(json.load(open("application.json"))["versionCheck"]["expectedTestVersion"])')
+        echo "Automated test SYSPRINT version: $actual_version"
+        if [ "$actual_version" != "$expected_version" ]; then
+          echo "Expected $expected_version but received $actual_version"
+          exit 1
+        fi
+        echo "Automated version test passed: $actual_version"
+      displayName: Submit V2 test JCL and verify SYSPRINT
+      timeoutInMinutes: 10
+      env:
+        MAINFRAME_PASSWORD: $(MAINFRAME_PASSWORD)
