@@ -1,0 +1,71 @@
+# This pipeline is intentionally manual and independent of azure-pipelines.yml.
+trigger: none
+pr: none
+
+parameters:
+- name: rollbackNeeded
+  displayName: Rollback needed?
+  type: string
+  default: No
+  values:
+    - Yes
+    - No
+
+variables:
+- group: mainframe-devops
+
+stages:
+- stage: Rollback
+  displayName: Rollback operation
+  condition: eq('${{ parameters.rollbackNeeded }}', 'Yes')
+  jobs:
+  - job: SubmitRollbackDateCheck
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+    - checkout: self
+    - task: UsePythonVersion@0
+      inputs:
+        versionSpec: '3.x'
+      displayName: Use Python for rollback scripts
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '20.x'
+      displayName: Use Node.js for Zowe CLI
+    - script: |
+        set -euo pipefail
+        npm install --global @zowe/cli
+        mkdir -p "$(Build.ArtifactStagingDirectory)/rollback"
+        python scripts/create_zowe_config.py application.json "$(Build.ArtifactStagingDirectory)/zowe.config.json"
+        export ZOWE_CLI_HOME="$(Build.ArtifactStagingDirectory)/zowe-home"
+        mkdir -p "$ZOWE_CLI_HOME"
+        cp "$(Build.ArtifactStagingDirectory)/zowe.config.json" "$ZOWE_CLI_HOME/zowe.config.json"
+        rollback_template=$(python -c 'import json; print(json.load(open("application.json"))["rollback"]["jclTemplate"])')
+        python scripts/render_version_jcl.py application.json "$rollback_template" "$(Build.ArtifactStagingDirectory)/rollback/rollback-date-run.jcl" rollbackQuery
+        echo "+ zowe zos-jobs submit local-file rollback-date-run.jcl --wfo true --rfj"
+        zowe zos-jobs submit local-file "$(Build.ArtifactStagingDirectory)/rollback/rollback-date-run.jcl" --wfo true --rfj 2>&1 | tee "$(Build.ArtifactStagingDirectory)/rollback/submit-response.json"
+        echo "+ python scripts/extract_job_id.py submit-response.json"
+        job_id=$(python scripts/extract_job_id.py "$(Build.ArtifactStagingDirectory)/rollback/submit-response.json")
+        echo "Rollback job ID: $job_id"
+        echo "+ zowe zos-jobs view job-status-by-jobid $job_id --rfj"
+        zowe zos-jobs view job-status-by-jobid "$job_id" --rfj 2>&1 | tee "$(Build.ArtifactStagingDirectory)/rollback/job-status.json"
+        echo "+ zowe zos-jobs view all-spool-content $job_id --rfj"
+        zowe zos-jobs view all-spool-content "$job_id" --rfj 2>&1 | tee "$(Build.ArtifactStagingDirectory)/rollback/job-log.json"
+        echo "+ python scripts/parse_sysprint_value.py job-log.json"
+        rollback_date=$(python scripts/parse_sysprint_value.py "$(Build.ArtifactStagingDirectory)/rollback/job-log.json")
+        echo "Rollback test date returned by SYSPRINT: $rollback_date"
+      displayName: Submit rollback date JCL and read SYSPRINT
+      timeoutInMinutes: 10
+      env:
+        MAINFRAME_PASSWORD: $(MAINFRAME_PASSWORD)
+
+- stage: RollbackNotRequested
+  displayName: Rollback not requested
+  condition: eq('${{ parameters.rollbackNeeded }}', 'No')
+  jobs:
+  - job: NoRollback
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+    - script: echo "Rollback not requested; no mainframe operation was submitted."
+      displayName: Skip rollback

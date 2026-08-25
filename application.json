@@ -16,5 +16,9 @@
   "sqlDeployment": {
     "ussDirectory": "/z/z80145",
     "jclTemplate": "jcl/execute-sql.jcl"
+  },
+  "rollback": {
+    "rollbackQuery": "SELECT CURRENT DATE FROM SYSIBM.SYSDUMMY1;",
+    "jclTemplate": "jcl/rollback-date.jcl"
   }
 }

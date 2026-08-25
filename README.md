@@ -31,6 +31,10 @@ After the upload, the pipeline reads `sqlDeployment.ussDirectory` and `sqlDeploy
 
 After deployment, the `AutomatedTest` stage renders `versionCheck.testQuery` into `jcl/test-version.jcl`, submits it with Zowe, retrieves status and all spool content by job ID, parses `SYSPRINT`, and asserts that the result equals `versionCheck.expectedTestVersion` (`V2`).
 
+## Independent rollback pipeline
+
+Rollback is intentionally separate from the normal deployment pipeline. The file `rollback-pipeline.yml` has no push or pull-request trigger, so it can be run manually days later without making the deployment pipeline wait. In Azure DevOps, create a second pipeline from this YAML and choose **Run pipeline**. Set `Rollback needed?` to `Yes` to submit the reusable `jcl/rollback-date.jcl`; set it to `No` to skip the mainframe operation. The rollback query comes from `rollback.rollbackQuery` in `application.json` and currently selects `CURRENT DATE` from `SYSIBM.SYSDUMMY1`. The job ID, status response, full spool response, and pipe-delimited `SYSPRINT` value are printed in the run log.
+
 The automated V2 test runs after the deployment stage completes successfully.
 
 Create an Azure DevOps variable group named `mainframe-devops` or add pipeline variables with these names:
