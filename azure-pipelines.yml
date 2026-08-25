@@ -13,102 +13,124 @@ pr:
 variables:
 - group: mainframe-devops
 
-pool:
-  vmImage: ubuntu-latest
+stages:
+- stage: Validate
+  displayName: Validate SQL and prepare files
+  jobs:
+  - job: ValidateSQL
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+    - checkout: self
+    - task: UsePythonVersion@0
+      inputs:
+        versionSpec: '3.x'
+      displayName: Use Python for SQL validation
+    - script: python scripts/validate_sql.py
+      displayName: Validate all DB2 SQL files
+    - script: |
+        set -euo pipefail
+        mkdir -p "$(Build.ArtifactStagingDirectory)/prepared"
+        while IFS= read -r -d '' sql_file; do
+          output_file="$(Build.ArtifactStagingDirectory)/prepared/$(basename "$sql_file")"
+          python scripts/prepare_fb80.py "$sql_file" "$output_file"
+        done < <(find . -path './.git' -prune -o -type f -name '*.sql' -print0)
+      displayName: Prepare SQL files as EBCDIC FB80
+    - publish: $(Build.ArtifactStagingDirectory)/prepared
+      artifact: prepared-sql
 
-steps:
-- checkout: self
+- stage: Approval
+  displayName: Approve mainframe deployment
+  dependsOn: Validate
+  condition: succeeded()
+  jobs:
+  - job: ManualApproval
+    pool: server
+    timeoutInMinutes: 1440
+    steps:
+    - task: ManualValidation@0
+      timeoutInMinutes: 1440
+      inputs:
+        notifyUsers: |
+          melvinkreji@gmail.com
+        instructions: Review the successful SQL validation results, then select Resume to continue with the mainframe version check, USS upload, and JCL submission.
+        onTimeout: reject
 
-- task: UsePythonVersion@0
-  inputs:
-    versionSpec: '3.x'
-  displayName: Use Python for SQL validation
-
-- script: python scripts/validate_sql.py
-  displayName: Validate all DB2 SQL files
-
-- script: |
-    set -euo pipefail
-    mkdir -p "$(Build.ArtifactStagingDirectory)/prepared"
-    while IFS= read -r -d '' sql_file; do
-      output_file="$(Build.ArtifactStagingDirectory)/prepared/$(basename "$sql_file")"
-      python scripts/prepare_fb80.py "$sql_file" "$output_file"
-    done < <(find . -path './.git' -prune -o -type f -name '*.sql' -print0)
-  displayName: Prepare SQL files as EBCDIC FB80
-
-- task: NodeTool@0
-  inputs:
-    versionSpec: '20.x'
-  displayName: Use Node.js for Zowe CLI
-
-- script: |
-    set -euo pipefail
-    npm install --global @zowe/cli
-    mkdir -p "$(Build.ArtifactStagingDirectory)/version"
-    python scripts/create_zowe_config.py application.json "$(Build.ArtifactStagingDirectory)/zowe.config.json"
-    export ZOWE_CLI_HOME="$(Build.ArtifactStagingDirectory)/zowe-home"
-    mkdir -p "$ZOWE_CLI_HOME"
-    cp "$(Build.ArtifactStagingDirectory)/zowe.config.json" "$ZOWE_CLI_HOME/zowe.config.json"
-    python scripts/render_version_jcl.py application.json jcl/version-check.jcl "$(Build.ArtifactStagingDirectory)/version/version-check-run.jcl"
-    job_output_dir="$(Build.ArtifactStagingDirectory)/version/job-output"
-    mkdir -p "$job_output_dir"
-    echo "+ zowe zos-jobs submit local-file version-check-run.jcl --wfo true --rfj"
-    zowe zos-jobs submit local-file "$(Build.ArtifactStagingDirectory)/version/version-check-run.jcl" --wfo true --rfj 2>&1 | tee "$(Build.ArtifactStagingDirectory)/version/submit-response.json"
-    echo "Zowe submit response saved to $(Build.ArtifactStagingDirectory)/version/submit-response.json"
-    echo "+ python scripts/extract_job_id.py submit-response.json"
-    job_id=$(python scripts/extract_job_id.py "$(Build.ArtifactStagingDirectory)/version/submit-response.json")
-    echo "Submitted job ID: $job_id"
-    echo "+ zowe zos-jobs view job-status-by-jobid $job_id --rfj"
-    zowe zos-jobs view job-status-by-jobid "$job_id" --rfj 2>&1 | tee "$(Build.ArtifactStagingDirectory)/version/job-status.json"
-    echo "+ zowe zos-jobs view all-spool-content $job_id --rfj"
-    zowe zos-jobs view all-spool-content "$job_id" --rfj 2>&1 | tee "$(Build.ArtifactStagingDirectory)/version/job-log.json"
-    echo "+ python scripts/parse_sysprint.py job-log.json"
-    python scripts/parse_sysprint.py "$(Build.ArtifactStagingDirectory)/version/job-log.json" | tee "$(Build.ArtifactStagingDirectory)/version/current-version.txt"
-    echo "Version returned by SYSPRINT: $(cat "$(Build.ArtifactStagingDirectory)/version/current-version.txt")"
-  displayName: Run version check JCL and parse SYSOUT
-  timeoutInMinutes: 10
-  env:
-    MAINFRAME_PASSWORD: $(MAINFRAME_PASSWORD)
-
-- script: |
-    set -euo pipefail
-    npm install --global @zowe/cli
-    python scripts/create_zowe_config.py application.json "$(Build.ArtifactStagingDirectory)/zowe.config.json"
-    uss_directory=$(python -c 'import json; print(json.load(open("application.json"))["sqlDeployment"]["ussDirectory"])')
-    export ZOWE_CLI_HOME="$(Build.ArtifactStagingDirectory)/zowe-home"
-    mkdir -p "$ZOWE_CLI_HOME"
-    cp "$(Build.ArtifactStagingDirectory)/zowe.config.json" "$ZOWE_CLI_HOME/zowe.config.json"
-    echo "+ zowe zos-files upload dir-to-uss $(Build.ArtifactStagingDirectory)/prepared $uss_directory --encoding IBM-1047"
-    zowe zos-files upload dir-to-uss "$(Build.ArtifactStagingDirectory)/prepared" "$uss_directory" --encoding "IBM-1047" 2>&1 | tee "$(Build.ArtifactStagingDirectory)/upload-response.log"
-  displayName: Upload SQL files to USS with Zowe
-  timeoutInMinutes: 10
-  env:
-    MAINFRAME_PASSWORD: $(MAINFRAME_PASSWORD)
-
-- script: |
-    set -euo pipefail
-    python scripts/create_zowe_config.py application.json "$(Build.ArtifactStagingDirectory)/zowe.config.json"
-    export ZOWE_CLI_HOME="$(Build.ArtifactStagingDirectory)/zowe-home"
-    mkdir -p "$ZOWE_CLI_HOME"
-    cp "$(Build.ArtifactStagingDirectory)/zowe.config.json" "$ZOWE_CLI_HOME/zowe.config.json"
-    sql_template=$(python -c 'import json; print(json.load(open("application.json"))["sqlDeployment"]["jclTemplate"])')
-    uss_directory=$(python -c 'import json; print(json.load(open("application.json"))["sqlDeployment"]["ussDirectory"])')
-    mkdir -p "$(Build.ArtifactStagingDirectory)/execute"
-    while IFS= read -r -d '' prepared_file; do
-      file_name=$(basename "$prepared_file")
-      uss_path="$uss_directory/$file_name"
-      run_jcl="$(Build.ArtifactStagingDirectory)/execute/$file_name.jcl"
-      python scripts/render_sql_jcl.py "$sql_template" "$uss_path" "$run_jcl"
-      echo "+ zowe zos-jobs submit local-file $run_jcl --wfo true --vasc --rfj"
-      zowe zos-jobs submit local-file "$run_jcl" --wfo true --vasc --rfj 2>&1 | tee "$(Build.ArtifactStagingDirectory)/execute/$file_name-response.json"
-    done < <(find "$(Build.ArtifactStagingDirectory)/prepared" -type f -name '*.sql' -print0)
-  displayName: Submit generic DSNTEP2 JCL for uploaded SQL
-  timeoutInMinutes: 10
-  env:
-    MAINFRAME_PASSWORD: $(MAINFRAME_PASSWORD)
-
-- script: |
-    echo "Azure DevOps pipeline triggered successfully"
-    echo "Branch: $(Build.SourceBranch)"
-    echo "Commit: $(Build.SourceVersion)"
-  displayName: Verify GitHub trigger
+- stage: Deploy
+  displayName: Mainframe deployment
+  dependsOn: Approval
+  condition: succeeded()
+  jobs:
+  - job: DeployToMainframe
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+    - checkout: self
+    - download: current
+      artifact: prepared-sql
+    - task: UsePythonVersion@0
+      inputs:
+        versionSpec: '3.x'
+      displayName: Use Python for deployment scripts
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '20.x'
+      displayName: Use Node.js for Zowe CLI
+    - script: |
+        set -euo pipefail
+        npm install --global @zowe/cli
+        mkdir -p "$(Build.ArtifactStagingDirectory)/version"
+        python scripts/create_zowe_config.py application.json "$(Build.ArtifactStagingDirectory)/zowe.config.json"
+        export ZOWE_CLI_HOME="$(Build.ArtifactStagingDirectory)/zowe-home"
+        mkdir -p "$ZOWE_CLI_HOME"
+        cp "$(Build.ArtifactStagingDirectory)/zowe.config.json" "$ZOWE_CLI_HOME/zowe.config.json"
+        python scripts/render_version_jcl.py application.json jcl/version-check.jcl "$(Build.ArtifactStagingDirectory)/version/version-check-run.jcl"
+        job_output_dir="$(Build.ArtifactStagingDirectory)/version/job-output"
+        mkdir -p "$job_output_dir"
+        echo "+ zowe zos-jobs submit local-file version-check-run.jcl --wfo true --rfj"
+        zowe zos-jobs submit local-file "$(Build.ArtifactStagingDirectory)/version/version-check-run.jcl" --wfo true --rfj 2>&1 | tee "$(Build.ArtifactStagingDirectory)/version/submit-response.json"
+        echo "+ python scripts/extract_job_id.py submit-response.json"
+        job_id=$(python scripts/extract_job_id.py "$(Build.ArtifactStagingDirectory)/version/submit-response.json")
+        echo "Submitted job ID: $job_id"
+        echo "+ zowe zos-jobs view job-status-by-jobid $job_id --rfj"
+        zowe zos-jobs view job-status-by-jobid "$job_id" --rfj 2>&1 | tee "$(Build.ArtifactStagingDirectory)/version/job-status.json"
+        echo "+ zowe zos-jobs view all-spool-content $job_id --rfj"
+        zowe zos-jobs view all-spool-content "$job_id" --rfj 2>&1 | tee "$(Build.ArtifactStagingDirectory)/version/job-log.json"
+        echo "+ python scripts/parse_sysprint.py job-log.json"
+        python scripts/parse_sysprint.py "$(Build.ArtifactStagingDirectory)/version/job-log.json" | tee "$(Build.ArtifactStagingDirectory)/version/current-version.txt"
+        echo "Version returned by SYSPRINT: $(cat "$(Build.ArtifactStagingDirectory)/version/current-version.txt")"
+      displayName: Run version check JCL and parse SYSPRINT
+      timeoutInMinutes: 10
+      env:
+        MAINFRAME_PASSWORD: $(MAINFRAME_PASSWORD)
+    - script: |
+        set -euo pipefail
+        uss_directory=$(python -c 'import json; print(json.load(open("application.json"))["sqlDeployment"]["ussDirectory"])')
+        echo "+ zowe zos-files upload dir-to-uss $(Pipeline.Workspace)/prepared-sql $uss_directory --encoding IBM-1047"
+        zowe zos-files upload dir-to-uss "$(Pipeline.Workspace)/prepared-sql" "$uss_directory" --encoding "IBM-1047" 2>&1 | tee "$(Build.ArtifactStagingDirectory)/upload-response.log"
+      displayName: Upload SQL files to USS with Zowe
+      timeoutInMinutes: 10
+      env:
+        MAINFRAME_PASSWORD: $(MAINFRAME_PASSWORD)
+    - script: |
+        set -euo pipefail
+        sql_template=$(python -c 'import json; print(json.load(open("application.json"))["sqlDeployment"]["jclTemplate"])')
+        uss_directory=$(python -c 'import json; print(json.load(open("application.json"))["sqlDeployment"]["ussDirectory"])')
+        mkdir -p "$(Build.ArtifactStagingDirectory)/execute"
+        while IFS= read -r -d '' prepared_file; do
+          file_name=$(basename "$prepared_file")
+          uss_path="$uss_directory/$file_name"
+          run_jcl="$(Build.ArtifactStagingDirectory)/execute/$file_name.jcl"
+          python scripts/render_sql_jcl.py "$sql_template" "$uss_path" "$run_jcl"
+          echo "+ zowe zos-jobs submit local-file $run_jcl --wfo true --vasc --rfj"
+          zowe zos-jobs submit local-file "$run_jcl" --wfo true --vasc --rfj 2>&1 | tee "$(Build.ArtifactStagingDirectory)/execute/$file_name-response.json"
+        done < <(find "$(Pipeline.Workspace)/prepared-sql" -type f -name '*.sql' -print0)
+      displayName: Submit generic DSNTEP2 JCL for uploaded SQL
+      timeoutInMinutes: 10
+      env:
+        MAINFRAME_PASSWORD: $(MAINFRAME_PASSWORD)
+    - script: |
+        echo "Azure DevOps pipeline triggered successfully"
+        echo "Branch: $(Build.SourceBranch)"
+        echo "Commit: $(Build.SourceVersion)"
+      displayName: Verify GitHub trigger

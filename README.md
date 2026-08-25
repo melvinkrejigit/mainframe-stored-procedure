@@ -36,3 +36,9 @@ Create an Azure DevOps variable group named `mainframe-devops` or add pipeline v
 Host, port, and user ID are configured in `application.json`. `MAINFRAME_PASSWORD` is intentionally the only Azure variable because passwords must not be committed to GitHub.
 
 The pipeline creates a temporary Zowe config during the run. Do not commit `~/.zowe/zowe.config.json`, usernames, or passwords to GitHub. Rotate the password that was shared in chat because it is now exposed.
+
+## Approval before mainframe work
+
+The pipeline has three stages: `Validate`, `Approval`, and `Deploy`. After `Validate` succeeds, `ManualValidation@0` pauses the run before any Zowe command executes. Azure DevOps sends an email notification to `melvinkreji@gmail.com`; open the run and select `Resume` to allow the version check, USS upload, and SQL JCL submission. Select `Reject` to stop the deployment.
+
+The email address must be able to receive Azure DevOps notifications in your organization. If the email is not delivered, add the user or an approved group under Azure DevOps notification settings and use that identity in `notifyUsers`.
