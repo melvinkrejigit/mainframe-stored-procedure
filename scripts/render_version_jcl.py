@@ -20,11 +20,11 @@ if not query.endswith(";"):
     raise SystemExit("versionCheck.query must end with a semicolon")
 
 template = Path(sys.argv[2]).read_text(encoding="utf-8")
-placeholder = "// __VERSION_QUERY__"
+placeholder = "__VERSION_QUERY__"
 if template.count(placeholder) != 1:
-    raise SystemExit("JCL template must contain exactly one // __VERSION_QUERY__ placeholder")
+    raise SystemExit("JCL template must contain exactly one __VERSION_QUERY__ placeholder")
 
 Path(sys.argv[3]).write_text(
-    template.replace(placeholder, "// " + query), encoding="utf-8"
+    template.replace(placeholder, query), encoding="utf-8"
 )
 print(f"Rendered version-check JCL at {sys.argv[3]}")

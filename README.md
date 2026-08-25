@@ -25,7 +25,7 @@ After validation, the pipeline prepares every `.sql` file as 80-character fixed 
 
 The repository contains `application.json` as the non-secret connection configuration. The actual `zowe.config.json` is generated temporarily during the Azure run from `application.json` plus the secret password.
 
-The version-check stage reads `versionCheck.query` from `application.json`, renders it directly as a `// SELECT ...` line inside `jcl/version-check.jcl`, and submits the temporary JCL with Zowe. It extracts the submitted `jobid`, then runs `zowe zos-jobs view job-status-by-jobid <jobid> --rfj` and `zowe zos-jobs view all-spool-content <jobid> --rfj`. `scripts/parse_sysprint.py` reads the `SYSPRINT` DD from the job log and extracts one pipe-delimited version such as `|V1|`. The Azure log shows each Zowe command and response. Change the query in `application.json` without changing the pipeline or JCL template.
+The version-check stage reads `versionCheck.query` from `application.json`, renders it as plain in-stream SQL inside `jcl/version-check.jcl` (without a `//` prefix), and submits the temporary JCL with Zowe. It extracts the submitted `jobid`, then runs `zowe zos-jobs view job-status-by-jobid <jobid> --rfj` and `zowe zos-jobs view all-spool-content <jobid> --rfj`. `scripts/parse_sysprint.py` reads the `SYSPRINT` DD from the job log and extracts one pipe-delimited version such as `|V1|` from a line like `1_| V1 |`. The Azure log shows each Zowe command and response. Change the query in `application.json` without changing the pipeline or JCL template.
 
 Create an Azure DevOps variable group named `mainframe-devops` or add pipeline variables with these names:
 
