@@ -105,6 +105,10 @@ stages:
         MAINFRAME_PASSWORD: $(MAINFRAME_PASSWORD)
     - script: |
         set -euo pipefail
+      python scripts/create_zowe_config.py application.json "$(Build.ArtifactStagingDirectory)/zowe.config.json"
+      export ZOWE_CLI_HOME="$(Build.ArtifactStagingDirectory)/zowe-home"
+      mkdir -p "$ZOWE_CLI_HOME"
+      cp "$(Build.ArtifactStagingDirectory)/zowe.config.json" "$ZOWE_CLI_HOME/zowe.config.json"
         uss_directory=$(python -c 'import json; print(json.load(open("application.json"))["sqlDeployment"]["ussDirectory"])')
         echo "+ zowe zos-files upload dir-to-uss $(Pipeline.Workspace)/prepared-sql $uss_directory --encoding IBM-1047"
         zowe zos-files upload dir-to-uss "$(Pipeline.Workspace)/prepared-sql" "$uss_directory" --encoding "IBM-1047" 2>&1 | tee "$(Build.ArtifactStagingDirectory)/upload-response.log"
@@ -114,6 +118,10 @@ stages:
         MAINFRAME_PASSWORD: $(MAINFRAME_PASSWORD)
     - script: |
         set -euo pipefail
+        python scripts/create_zowe_config.py application.json "$(Build.ArtifactStagingDirectory)/zowe.config.json"
+        export ZOWE_CLI_HOME="$(Build.ArtifactStagingDirectory)/zowe-home"
+        mkdir -p "$ZOWE_CLI_HOME"
+        cp "$(Build.ArtifactStagingDirectory)/zowe.config.json" "$ZOWE_CLI_HOME/zowe.config.json"
         sql_template=$(python -c 'import json; print(json.load(open("application.json"))["sqlDeployment"]["jclTemplate"])')
         uss_directory=$(python -c 'import json; print(json.load(open("application.json"))["sqlDeployment"]["ussDirectory"])')
         mkdir -p "$(Build.ArtifactStagingDirectory)/execute"
