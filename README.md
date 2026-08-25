@@ -31,6 +31,8 @@ After the upload, the pipeline reads `sqlDeployment.ussDirectory` and `sqlDeploy
 
 After deployment, the `AutomatedTest` stage renders `versionCheck.testQuery` into `jcl/test-version.jcl`, submits it with Zowe, retrieves status and all spool content by job ID, parses `SYSPRINT`, and asserts that the result equals `versionCheck.expectedTestVersion` (`V2`).
 
+The automated V2 test runs after the deployment stage completes successfully.
+
 Create an Azure DevOps variable group named `mainframe-devops` or add pipeline variables with these names:
 
 - `MAINFRAME_PASSWORD`: secret variable
