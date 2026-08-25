@@ -49,10 +49,7 @@ steps:
     export ZOWE_CLI_HOME="$(Build.ArtifactStagingDirectory)/zowe-home"
     mkdir -p "$ZOWE_CLI_HOME"
     cp "$(Build.ArtifactStagingDirectory)/zowe.config.json" "$ZOWE_CLI_HOME/zowe.config.json"
-    python scripts/create_version_query.py application.json "$(Build.ArtifactStagingDirectory)/version/version-check.sql"
-    version_query_path=$(python -c 'import json; print(json.load(open("application.json"))["versionCheck"]["ussPath"])')
-    zowe zos-files upload dir-to-uss "$(Build.ArtifactStagingDirectory)/version" "$(dirname "$version_query_path")" --encoding "IBM-1047"
-    sed "s|__VERSION_QUERY_PATH__|$version_query_path|g" jcl/version-check.jcl > "$(Build.ArtifactStagingDirectory)/version/version-check-run.jcl"
+    python scripts/render_version_jcl.py application.json jcl/version-check.jcl "$(Build.ArtifactStagingDirectory)/version/version-check-run.jcl"
     zowe zos-jobs submit local-file "$(Build.ArtifactStagingDirectory)/version/version-check-run.jcl" --wfo true --rfj > "$(Build.ArtifactStagingDirectory)/version/version-output.json"
     python scripts/parse_sysprint.py "$(Build.ArtifactStagingDirectory)/version/version-output.json" > "$(Build.ArtifactStagingDirectory)/version/current-version.txt"
     echo "Version returned by SYSOUT: $(cat "$(Build.ArtifactStagingDirectory)/version/current-version.txt")"

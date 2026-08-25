@@ -25,7 +25,7 @@ After validation, the pipeline prepares every `.sql` file as 80-character fixed 
 
 The repository contains `application.json` as the non-secret connection configuration. The actual `zowe.config.json` is generated temporarily during the Azure run from `application.json` plus the secret password.
 
-The version-check stage reads `versionCheck.query` and `versionCheck.ussPath` from `application.json`, pads the query to FB80, uploads it with IBM-1047 encoding, renders `jcl/version-check.jcl`, and submits it with Zowe `--wfo true --rfj`. `scripts/parse_sysprint.py` reads the returned job output and extracts one version such as `V1`. Change the query or path in `application.json` without changing the pipeline or JCL template.
+The version-check stage reads `versionCheck.query` from `application.json`, renders it directly as a `// SELECT ...` line inside `jcl/version-check.jcl`, and submits the temporary JCL with Zowe `--wfo true --rfj`. `scripts/parse_sysprint.py` reads the returned job output and extracts one version such as `V1`. Change the query in `application.json` without changing the pipeline or JCL template.
 
 Create an Azure DevOps variable group named `mainframe-devops` or add pipeline variables with these names:
 

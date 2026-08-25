@@ -8,7 +8,6 @@
   },
   "versionCheck": {
     "query": "SELECT 'V1' FROM SYSIBM.SYSDUMMY1;",
-    "ussPath": "/z/z80145/version-check.sql",
     "jclTemplate": "jcl/version-check.jcl"
   }
 }
