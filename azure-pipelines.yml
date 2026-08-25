@@ -54,6 +54,7 @@ steps:
     python scripts/parse_sysprint.py "$(Build.ArtifactStagingDirectory)/version/version-output.json" > "$(Build.ArtifactStagingDirectory)/version/current-version.txt"
     echo "Version returned by SYSOUT: $(cat "$(Build.ArtifactStagingDirectory)/version/current-version.txt")"
   displayName: Run version check JCL and parse SYSOUT
+  timeoutInMinutes: 10
   env:
     MAINFRAME_PASSWORD: $(MAINFRAME_PASSWORD)
 
@@ -66,6 +67,7 @@ steps:
     cp "$(Build.ArtifactStagingDirectory)/zowe.config.json" "$ZOWE_CLI_HOME/zowe.config.json"
     zowe zos-files upload dir-to-uss "$(Build.ArtifactStagingDirectory)/prepared" "/z/z80145" --encoding "IBM-1047"
   displayName: Upload SQL files to USS with Zowe
+  timeoutInMinutes: 10
   env:
     MAINFRAME_PASSWORD: $(MAINFRAME_PASSWORD)
 
