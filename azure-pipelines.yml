@@ -50,9 +50,21 @@ steps:
     mkdir -p "$ZOWE_CLI_HOME"
     cp "$(Build.ArtifactStagingDirectory)/zowe.config.json" "$ZOWE_CLI_HOME/zowe.config.json"
     python scripts/render_version_jcl.py application.json jcl/version-check.jcl "$(Build.ArtifactStagingDirectory)/version/version-check-run.jcl"
-    zowe zos-jobs submit local-file "$(Build.ArtifactStagingDirectory)/version/version-check-run.jcl" --wfo true --rfj > "$(Build.ArtifactStagingDirectory)/version/version-output.json"
-    python scripts/parse_sysprint.py "$(Build.ArtifactStagingDirectory)/version/version-output.json" > "$(Build.ArtifactStagingDirectory)/version/current-version.txt"
-    echo "Version returned by SYSOUT: $(cat "$(Build.ArtifactStagingDirectory)/version/current-version.txt")"
+    job_output_dir="$(Build.ArtifactStagingDirectory)/version/job-output"
+    mkdir -p "$job_output_dir"
+    echo "+ zowe zos-jobs submit local-file version-check-run.jcl --wfo true --rfj"
+    zowe zos-jobs submit local-file "$(Build.ArtifactStagingDirectory)/version/version-check-run.jcl" --wfo true --rfj 2>&1 | tee "$(Build.ArtifactStagingDirectory)/version/submit-response.json"
+    echo "Zowe submit response saved to $(Build.ArtifactStagingDirectory)/version/submit-response.json"
+    echo "+ python scripts/extract_job_id.py submit-response.json"
+    job_id=$(python scripts/extract_job_id.py "$(Build.ArtifactStagingDirectory)/version/submit-response.json")
+    echo "Submitted job ID: $job_id"
+    echo "+ zowe zos-jobs view job-status-by-jobid $job_id --rfj"
+    zowe zos-jobs view job-status-by-jobid "$job_id" --rfj 2>&1 | tee "$(Build.ArtifactStagingDirectory)/version/job-status.json"
+    echo "+ zowe zos-jobs view all-spool-content $job_id --rfj"
+    zowe zos-jobs view all-spool-content "$job_id" --rfj 2>&1 | tee "$(Build.ArtifactStagingDirectory)/version/job-log.json"
+    echo "+ python scripts/parse_sysprint.py job-log.json"
+    python scripts/parse_sysprint.py "$(Build.ArtifactStagingDirectory)/version/job-log.json" | tee "$(Build.ArtifactStagingDirectory)/version/current-version.txt"
+    echo "Version returned by SYSPRINT: $(cat "$(Build.ArtifactStagingDirectory)/version/current-version.txt")"
   displayName: Run version check JCL and parse SYSOUT
   timeoutInMinutes: 10
   env:
