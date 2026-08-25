@@ -37,7 +37,7 @@ if not content:
 matches = re.findall(r"\|\s*(V[0-9]+)\s*\|", content, re.IGNORECASE)
 if not matches:
     raise SystemExit("No pipe-delimited V-number found in SYSPRINT")
-versions = {f"V{number}" for number in matches}
+versions = {number.upper() for number in matches}
 if len(versions) != 1:
     raise SystemExit(f"Multiple versions found in SYSPRINT: {', '.join(sorted(versions))}")
 print(next(iter(versions)))
