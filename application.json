@@ -2,7 +2,7 @@
   "zowe": {
     "host": "204.90.115.200",
     "port": 10443,
-    "user": "Z80145",
+    "user": "Z82437",
     "passwordEnv": "MAINFRAME_PASSWORD",
     "rejectUnauthorized": false
   },
@@ -14,7 +14,7 @@
     "expectedTestVersion": "V2"
   },
   "sqlDeployment": {
-    "ussDirectory": "/z/z80145",
+    "ussDirectory": "/z/z82437",
     "jclTemplate": "jcl/execute-sql.jcl"
   },
   "rollback": {

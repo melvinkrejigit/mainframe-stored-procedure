@@ -21,7 +21,7 @@ The first Azure DevOps step uses `scripts/validate_sql.py` to automatically disc
 
 ## USS upload configuration
 
-After validation, the pipeline prepares every `.sql` file as 80-character fixed records. SQL must fit in columns 1-72; the remaining columns are padded with spaces. Zowe CLI then uploads the prepared directory with `dir-to-uss --encoding "IBM-1047"`, so Zowe performs the EBCDIC conversion. The original filename is preserved and uploaded to `/z/z80145/<filename>`.
+After validation, the pipeline prepares every `.sql` file as 80-character fixed records. SQL must fit in columns 1-72; the remaining columns are padded with spaces. Zowe CLI then uploads the prepared directory with `dir-to-uss --encoding "IBM-1047"`, so Zowe performs the EBCDIC conversion. The original filename is preserved and uploaded to `/z/z82437/<filename>`.
 
 The repository contains `application.json` as the non-secret connection configuration. The actual `zowe.config.json` is generated temporarily during the Azure run from `application.json` plus the secret password.
 
