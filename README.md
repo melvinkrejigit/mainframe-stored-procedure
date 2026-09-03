@@ -50,3 +50,15 @@ The pipeline creates a temporary Zowe config during the run. Do not commit `~/.z
 The pipeline has three stages: `Validate`, `Approval`, and `Deploy`. After `Validate` succeeds, `ManualValidation@0` pauses the run before any Zowe command executes. Azure DevOps sends an email notification to `melvinkreji@gmail.com`; open the run and select `Resume` to allow the version check, USS upload, and SQL JCL submission. Select `Reject` to stop the deployment.
 
 The email address must be able to receive Azure DevOps notifications in your organization. If the email is not delivered, add the user or an approved group under Azure DevOps notification settings and use that identity in `notifyUsers`.
+
+## Self-hosted agent
+
+All jobs run on a self-hosted agent (pool `SelfHosted-Mainframe`) instead of the Microsoft-hosted `ubuntu-latest` image. To avoid Azure VM cost, the agent runs on your local WSL Ubuntu distro (`Ubuntu-24.04`) instead of a cloud VM.
+
+1. Open a WSL terminal (`wsl -d Ubuntu-24.04`) and run `scripts/setup-wsl-agent-host.sh`. It installs Python, Node.js 20, and `@zowe/cli` once instead of on every pipeline run.
+2. In Azure DevOps, go to **Organization settings > Agent pools > Add pool** and create a self-hosted pool named `SelfHosted-Mainframe`.
+3. Create a PAT with **Agent Pools (Read & manage)** scope under **User settings > Personal access tokens**.
+4. In the same WSL terminal, run `scripts/register-agent.sh`, entering the PAT when prompted. It downloads the Azure Pipelines agent and registers it under `SelfHosted-Mainframe`.
+
+Because the agent runs in WSL, it only picks up jobs while WSL is running on your machine (no jobs run while your PC is off or WSL is shut down). Keep a WSL terminal open, or enable systemd in `/etc/wsl.conf` and use `sudo ./svc.sh start` inside the agent folder so it starts automatically whenever WSL starts.
+

@@ -19,14 +19,10 @@ stages:
   jobs:
   - job: ValidateSQL
     pool:
-      vmImage: ubuntu-latest
+      name: SelfHosted-Mainframe
     steps:
     - checkout: self
-    - task: UsePythonVersion@0
-      inputs:
-        versionSpec: '3.x'
-      displayName: Use Python for SQL validation
-    - script: python scripts/validate_sql.py
+    - script: python3 scripts/validate_sql.py
       displayName: Validate all DB2 SQL files
     - script: |
         set -euo pipefail
@@ -63,22 +59,13 @@ stages:
   jobs:
   - job: DeployToMainframe
     pool:
-      vmImage: ubuntu-latest
+      name: SelfHosted-Mainframe
     steps:
     - checkout: self
     - download: current
       artifact: prepared-sql
-    - task: UsePythonVersion@0
-      inputs:
-        versionSpec: '3.x'
-      displayName: Use Python for deployment scripts
-    - task: NodeTool@0
-      inputs:
-        versionSpec: '20.x'
-      displayName: Use Node.js for Zowe CLI
     - script: |
         set -euo pipefail
-        npm install --global @zowe/cli
         mkdir -p "$(Build.ArtifactStagingDirectory)/version"
         python scripts/create_zowe_config.py application.json "$(Build.ArtifactStagingDirectory)/zowe.config.json"
         export ZOWE_CLI_HOME="$(Build.ArtifactStagingDirectory)/zowe-home"
@@ -150,20 +137,11 @@ stages:
   jobs:
   - job: TestVersion
     pool:
-      vmImage: ubuntu-latest
+      name: SelfHosted-Mainframe
     steps:
     - checkout: self
-    - task: UsePythonVersion@0
-      inputs:
-        versionSpec: '3.x'
-      displayName: Use Python for test scripts
-    - task: NodeTool@0
-      inputs:
-        versionSpec: '20.x'
-      displayName: Use Node.js for Zowe CLI
     - script: |
         set -euo pipefail
-        npm install --global @zowe/cli
         mkdir -p "$(Build.ArtifactStagingDirectory)/test"
         python scripts/create_zowe_config.py application.json "$(Build.ArtifactStagingDirectory)/zowe.config.json"
         export ZOWE_CLI_HOME="$(Build.ArtifactStagingDirectory)/zowe-home"

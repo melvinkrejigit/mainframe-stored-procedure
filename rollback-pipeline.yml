@@ -21,23 +21,14 @@ stages:
   jobs:
   - job: SubmitRollbackDateCheck
     pool:
-      vmImage: ubuntu-latest
+      name: SelfHosted-Mainframe
     steps:
     - checkout: self
-    - task: UsePythonVersion@0
-      inputs:
-        versionSpec: '3.x'
-      displayName: Use Python for rollback scripts
-    - task: NodeTool@0
-      inputs:
-        versionSpec: '20.x'
-      displayName: Use Node.js for Zowe CLI
     - script: |
         set -euo pipefail
         app_file="$(Build.SourcesDirectory)/application.json"
         test -f "$app_file" || { echo "application.json not found at $app_file on $(Build.SourceBranch)"; exit 1; }
         echo "Using application config: $app_file"
-        npm install --global @zowe/cli
         mkdir -p "$(Build.ArtifactStagingDirectory)/rollback"
         python "$(Build.SourcesDirectory)/scripts/create_zowe_config.py" "$app_file" "$(Build.ArtifactStagingDirectory)/zowe.config.json"
         export ZOWE_CLI_HOME="$(Build.ArtifactStagingDirectory)/zowe-home"
@@ -69,7 +60,7 @@ stages:
   jobs:
   - job: NoRollback
     pool:
-      vmImage: ubuntu-latest
+      name: SelfHosted-Mainframe
     steps:
     - script: echo "Rollback not requested; no mainframe operation was submitted."
       displayName: Skip rollback
