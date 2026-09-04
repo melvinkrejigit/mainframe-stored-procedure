@@ -12,6 +12,10 @@ pr:
 
 variables:
 - group: mainframe-devops
+- name: artifactsFeed
+  value: MF DevOps Project/melvinrejiuk01
+- name: preparedSqlPackage
+  value: prepared-sql
 
 stages:
 - stage: Validate
@@ -53,8 +57,16 @@ stages:
           python pipelines/scripts/prepare_fb80.py "$sql_file" "$output_file"
         done
       displayName: Prepare changed SQL files as EBCDIC FB80
-    - publish: $(Build.ArtifactStagingDirectory)/prepared
-      artifact: prepared-sql
+    - task: UniversalPackages@0
+      displayName: Publish prepared SQL to Azure Artifacts
+      inputs:
+        command: publish
+        publishDirectory: $(Build.ArtifactStagingDirectory)/prepared
+        feedsToUsePublish: internal
+        vstsFeedPublish: $(artifactsFeed)
+        vstsFeedPackagePublish: $(preparedSqlPackage)
+        versionOption: patch
+        packagePublishDescription: Prepared FB80 SQL files for mainframe deployment
 
 - stage: Deploy
   displayName: Mainframe deployment
@@ -66,8 +78,15 @@ stages:
       name: SelfHosted-Mainframe
     steps:
     - checkout: self
-    - download: current
-      artifact: prepared-sql
+    - task: UniversalPackages@0
+      displayName: Download prepared SQL from Azure Artifacts
+      inputs:
+        command: download
+        downloadDirectory: $(Pipeline.Workspace)/prepared-sql
+        feedsToUseDownload: internal
+        vstsFeedDownload: $(artifactsFeed)
+        vstsFeedPackageDownload: $(preparedSqlPackage)
+        versionDownload: latest
     - script: |
         set -euo pipefail
         mkdir -p "$(Build.ArtifactStagingDirectory)/version"
