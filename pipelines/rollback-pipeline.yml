@@ -20,6 +20,8 @@ parameters:
   default: current-timestamp
   values:
     - current-timestamp
+    - test01
+    - test02
 
 variables:
 - group: mainframe-devops
