@@ -61,10 +61,14 @@ stages:
         export ZOWE_CLI_HOME="$(Build.ArtifactStagingDirectory)/zowe-home"
         mkdir -p "$ZOWE_CLI_HOME"
         cp "$(Build.ArtifactStagingDirectory)/zowe.config.json" "$ZOWE_CLI_HOME/zowe.config.json"
-        uss_directory=$(python -c 'import json; print(json.load(open("config/application.json"))["sqlDeployment"]["ussDirectory"])')
+        base_uss_directory=$(python -c 'import json; print(json.load(open("config/application.json"))["sqlDeployment"]["ussDirectory"])')
+        uss_directory="$base_uss_directory/$(Build.BuildId)"
+        echo "+ zowe zos-files create uss-directory $uss_directory"
+        zowe zos-files create uss-directory "$uss_directory" 2>&1 | tee "$(Build.ArtifactStagingDirectory)/create-uss-dir-response.log"
         echo "+ zowe zos-files upload dir-to-uss $(Pipeline.Workspace)/prepared-sql $uss_directory --encoding IBM-1047"
         zowe zos-files upload dir-to-uss "$(Pipeline.Workspace)/prepared-sql" "$uss_directory" --encoding "IBM-1047" 2>&1 | tee "$(Build.ArtifactStagingDirectory)/upload-response.log"
-      displayName: Upload SQL files to USS with Zowe
+        echo "$uss_directory" > "$(Build.ArtifactStagingDirectory)/uss-directory.txt"
+      displayName: Create build-specific USS directory and upload SQL
       timeoutInMinutes: 10
       env:
         MAINFRAME_PASSWORD: $(MAINFRAME_PASSWORD)
@@ -75,7 +79,7 @@ stages:
         mkdir -p "$ZOWE_CLI_HOME"
         cp "$(Build.ArtifactStagingDirectory)/zowe.config.json" "$ZOWE_CLI_HOME/zowe.config.json"
         sql_template=$(python -c 'import json; print(json.load(open("config/application.json"))["sqlDeployment"]["jclTemplate"])')
-        uss_directory=$(python -c 'import json; print(json.load(open("config/application.json"))["sqlDeployment"]["ussDirectory"])')
+        uss_directory=$(cat "$(Build.ArtifactStagingDirectory)/uss-directory.txt")
         mkdir -p "$(Build.ArtifactStagingDirectory)/execute"
         while IFS= read -r -d '' prepared_file; do
           file_name=$(basename "$prepared_file")
