@@ -83,10 +83,10 @@ stages:
       inputs:
         command: download
         downloadDirectory: $(Pipeline.Workspace)/prepared-sql
-        feedsToUseDownload: internal
-        vstsFeedDownload: $(artifactsFeed)
-        vstsFeedPackageDownload: $(preparedSqlPackage)
-        versionDownload: latest
+        feedsToUse: internal
+        vstsFeed: $(artifactsFeed)
+        vstsFeedPackage: $(preparedSqlPackage)
+        vstsPackageVersion: '*'
     - script: |
         set -euo pipefail
         mkdir -p "$(Build.ArtifactStagingDirectory)/version"
