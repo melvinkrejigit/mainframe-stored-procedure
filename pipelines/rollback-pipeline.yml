@@ -58,6 +58,22 @@ stages:
         set -euo pipefail
         app_file="$(Build.SourcesDirectory)/config/application.json"
         test -f "$app_file" || { echo "application.json not found at $app_file on $(Build.SourceBranch)"; exit 1; }
+        python "$(Build.SourcesDirectory)/pipelines/scripts/create_zowe_config.py" "$app_file" "$(Build.ArtifactStagingDirectory)/zowe.config.json"
+        export ZOWE_CLI_HOME="$(Build.ArtifactStagingDirectory)/zowe-home"
+        mkdir -p "$ZOWE_CLI_HOME"
+        cp "$(Build.ArtifactStagingDirectory)/zowe.config.json" "$ZOWE_CLI_HOME/zowe.config.json"
+        base_uss_directory=$(python -c 'import json; print(json.load(open("config/application.json"))["sqlDeployment"]["ussDirectory"])')
+        uss_path="$base_uss_directory/${{ parameters.buildId }}/${{ parameters.component }}.sql"
+        echo "+ zowe zos-files view uss-file $uss_path"
+        zowe zos-files view uss-file "$uss_path" 2>&1 | tee "$(Build.ArtifactStagingDirectory)/uss-component-content.txt"
+      displayName: 'Display ${{ parameters.component }} content from USS for build ${{ parameters.buildId }}'
+      timeoutInMinutes: 10
+      env:
+        MAINFRAME_PASSWORD: $(MAINFRAME_PASSWORD)
+    - script: |
+        set -euo pipefail
+        app_file="$(Build.SourcesDirectory)/config/application.json"
+        test -f "$app_file" || { echo "application.json not found at $app_file on $(Build.SourceBranch)"; exit 1; }
         echo "Using application config: $app_file"
         mkdir -p "$(Build.ArtifactStagingDirectory)/rollback"
         python "$(Build.SourcesDirectory)/pipelines/scripts/create_zowe_config.py" "$app_file" "$(Build.ArtifactStagingDirectory)/zowe.config.json"
