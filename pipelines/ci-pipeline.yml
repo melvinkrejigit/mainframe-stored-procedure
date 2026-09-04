@@ -14,10 +14,13 @@ pr:
       - develop
 
 variables:
+- group: ado-automation
 - name: artifactsFeed
   value: MF DevOps Project/mf-devops-sql
 - name: preparedSqlPackage
   value: prepared-sql
+- name: cdPipelineId
+  value: '10'
 
 stages:
 - stage: Validate
@@ -69,4 +72,15 @@ stages:
         vstsFeedPackagePublish: $(preparedSqlPackage)
         versionOption: patch
         packagePublishDescription: Prepared FB80 SQL files for mainframe deployment
+    - script: |
+        set -euo pipefail
+        echo "Queuing MF DevOps - CD (definitionId=$(cdPipelineId)) for branch $(Build.SourceBranch)"
+        curl -s -X POST \
+          -u ":$(ADO_PAT)" \
+          -H "Content-Type: application/json" \
+          "https://dev.azure.com/melvinrejiuk01/MF%20DevOps%20Project/_apis/pipelines/$(cdPipelineId)/runs?api-version=7.1" \
+          -d "{\"resources\": {\"repositories\": {\"self\": {\"refName\": \"$(Build.SourceBranch)\"}}}}" \
+          -o /dev/null -w "Queued CD pipeline run, HTTP status: %{http_code}\n"
+      displayName: Queue CD pipeline (fire-and-forget, does not wait)
+      condition: succeeded()
 

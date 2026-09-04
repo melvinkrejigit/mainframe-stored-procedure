@@ -1,20 +1,8 @@
-# CD: automatically queued when the CI pipeline (MF DevOps - CI) completes,
-# via the pipeline resource trigger below. CI does not wait for this to
-# finish - it is a separate, independently-queued run.
+# CD: queued automatically by a fire-and-forget REST API call at the end of
+# ci-pipeline.yml's Validate stage (avoids the resource-trigger limitation
+# that only reads trigger definitions from the repo's default branch).
 trigger: none
 pr: none
-
-resources:
-  pipelines:
-  - pipeline: ciPipeline
-    source: MF DevOps - CI
-    trigger:
-      branches:
-        include:
-          - feature/*
-          - develop
-      stages:
-        - Validate
 
 variables:
 - group: mainframe-devops
