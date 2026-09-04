@@ -1,8 +1,13 @@
 {
   "current-timestamp": {
-    "sqlFile": "src/stored_procedure/current-timestamp.sql",
-    "latestBuildId": null,
-    "latestUssPath": null,
-    "deployments": {}
+    "deployments": {
+      "116": {
+        "deployedAt": "2026-09-04T16:14:33.445060+00:00",
+        "ussPath": "/z/z80145/116/current-timestamp.sql"
+      }
+    },
+    "latestBuildId": "116",
+    "latestUssPath": "/z/z80145/116/current-timestamp.sql",
+    "sqlFile": "src/stored_procedure/current-timestamp.sql"
   }
 }
