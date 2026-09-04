@@ -8,17 +8,17 @@
   },
   "versionCheck": {
     "query": "SELECT 'V1' FROM SYSIBM.SYSDUMMY1;",
-    "jclTemplate": "jcl/version-check.jcl",
+    "jclTemplate": "pipelines/templates/version-check.jcl",
     "testQuery": "SELECT 'V2' FROM SYSIBM.SYSDUMMY1;",
-    "testJclTemplate": "jcl/test-version.jcl",
+    "testJclTemplate": "pipelines/templates/test-version.jcl",
     "expectedTestVersion": "V2"
   },
   "sqlDeployment": {
     "ussDirectory": "/z/z82437",
-    "jclTemplate": "jcl/execute-sql.jcl"
+    "jclTemplate": "pipelines/templates/execute-sql.jcl"
   },
   "rollback": {
     "query": "SELECT CURRENT DATE FROM SYSIBM.SYSDUMMY1;",
-    "jclTemplate": "jcl/rollback-date.jcl"
+    "jclTemplate": "pipelines/templates/rollback-date.jcl"
   }
 }

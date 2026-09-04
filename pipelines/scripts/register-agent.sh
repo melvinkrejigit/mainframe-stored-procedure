@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Run this INSIDE WSL (after scripts/setup-wsl-agent-host.sh) to register it
-# as a self-hosted Azure Pipelines agent. Requires a PAT with
+# Run this INSIDE WSL (after pipelines/scripts/setup-wsl-agent-host.sh) to
+# register it as a self-hosted Azure Pipelines agent. Requires a PAT with
 # "Agent Pools (Read & manage)" scope, created in Azure DevOps under
 # User settings > Personal access tokens.
 set -euo pipefail

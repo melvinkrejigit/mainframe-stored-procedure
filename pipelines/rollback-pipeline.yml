@@ -26,33 +26,33 @@ stages:
     - checkout: self
     - script: |
         set -euo pipefail
-        app_file="$(Build.SourcesDirectory)/application.json"
+        app_file="$(Build.SourcesDirectory)/config/application.json"
         test -f "$app_file" || { echo "application.json not found at $app_file on $(Build.SourceBranch)"; exit 1; }
         echo "Using application config: $app_file"
         mkdir -p "$(Build.ArtifactStagingDirectory)/rollback"
-        python "$(Build.SourcesDirectory)/scripts/create_zowe_config.py" "$app_file" "$(Build.ArtifactStagingDirectory)/zowe.config.json"
+        python "$(Build.SourcesDirectory)/pipelines/scripts/create_zowe_config.py" "$app_file" "$(Build.ArtifactStagingDirectory)/zowe.config.json"
         export ZOWE_CLI_HOME="$(Build.ArtifactStagingDirectory)/zowe-home"
         mkdir -p "$ZOWE_CLI_HOME"
         cp "$(Build.ArtifactStagingDirectory)/zowe.config.json" "$ZOWE_CLI_HOME/zowe.config.json"
-        rollback_template=$(python -c 'import json, os; app=os.environ["APP_FILE"]; print(os.path.join(os.path.dirname(app), json.load(open(app))["rollback"]["jclTemplate"]))')
-        python "$(Build.SourcesDirectory)/scripts/render_version_jcl.py" "$app_file" "$rollback_template" "$(Build.ArtifactStagingDirectory)/rollback/rollback-date-run.jcl" query rollback
+        rollback_template=$(python -c 'import json, os; app=os.environ["APP_FILE"]; repo_root=os.environ["BUILD_SOURCESDIRECTORY"]; print(os.path.join(repo_root, json.load(open(app))["rollback"]["jclTemplate"]))')
+        python "$(Build.SourcesDirectory)/pipelines/scripts/render_version_jcl.py" "$app_file" "$rollback_template" "$(Build.ArtifactStagingDirectory)/rollback/rollback-date-run.jcl" query rollback
         echo "+ zowe zos-jobs submit local-file rollback-date-run.jcl --wfo true --rfj"
         zowe zos-jobs submit local-file "$(Build.ArtifactStagingDirectory)/rollback/rollback-date-run.jcl" --wfo true --rfj 2>&1 | tee "$(Build.ArtifactStagingDirectory)/rollback/submit-response.json"
-        echo "+ python scripts/extract_job_id.py submit-response.json"
-        job_id=$(python scripts/extract_job_id.py "$(Build.ArtifactStagingDirectory)/rollback/submit-response.json")
+        echo "+ python pipelines/scripts/extract_job_id.py submit-response.json"
+        job_id=$(python "$(Build.SourcesDirectory)/pipelines/scripts/extract_job_id.py" "$(Build.ArtifactStagingDirectory)/rollback/submit-response.json")
         echo "Rollback job ID: $job_id"
         echo "+ zowe zos-jobs view job-status-by-jobid $job_id --rfj"
         zowe zos-jobs view job-status-by-jobid "$job_id" --rfj 2>&1 | tee "$(Build.ArtifactStagingDirectory)/rollback/job-status.json"
         echo "+ zowe zos-jobs view all-spool-content $job_id --rfj"
         zowe zos-jobs view all-spool-content "$job_id" --rfj 2>&1 | tee "$(Build.ArtifactStagingDirectory)/rollback/job-log.json"
-        echo "+ python scripts/parse_sysprint_value.py job-log.json"
-        rollback_date=$(python scripts/parse_sysprint_value.py "$(Build.ArtifactStagingDirectory)/rollback/job-log.json")
+        echo "+ python pipelines/scripts/parse_sysprint_value.py job-log.json"
+        rollback_date=$(python "$(Build.SourcesDirectory)/pipelines/scripts/parse_sysprint_value.py" "$(Build.ArtifactStagingDirectory)/rollback/job-log.json")
         echo "Rollback test date returned by SYSPRINT: $rollback_date"
       displayName: Submit rollback date JCL and read SYSPRINT
       timeoutInMinutes: 10
       env:
         MAINFRAME_PASSWORD: $(MAINFRAME_PASSWORD)
-        APP_FILE: $(Build.SourcesDirectory)/application.json
+        APP_FILE: $(Build.SourcesDirectory)/config/application.json
 
 - stage: RollbackNotRequested
   displayName: Rollback not requested
