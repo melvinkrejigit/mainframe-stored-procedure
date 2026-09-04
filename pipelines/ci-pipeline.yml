@@ -6,6 +6,9 @@ trigger:
     include:
       - feature/*
       - develop
+  paths:
+    exclude:
+      - config/components.json
 
 pr:
   branches:
