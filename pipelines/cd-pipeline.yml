@@ -1,14 +1,8 @@
-trigger:
-  branches:
-    include:
-      - feature/*
-      - develop
-
-pr:
-  branches:
-    include:
-      - feature/*
-      - develop
+# CD: manually run after ci-pipeline.yml publishes a new prepared-sql package.
+# Downloads the latest published package from Azure Artifacts and deploys it
+# to the mainframe, then runs the automated version test.
+trigger: none
+pr: none
 
 variables:
 - group: mainframe-devops
@@ -18,60 +12,8 @@ variables:
   value: prepared-sql
 
 stages:
-- stage: Validate
-  displayName: Validate SQL and prepare files
-  jobs:
-  - job: ValidateSQL
-    pool:
-      name: SelfHosted-Mainframe
-    steps:
-    - checkout: self
-      fetchDepth: 2
-    - script: |
-        set -euo pipefail
-        changed_file="$(Build.ArtifactStagingDirectory)/changed-sql-files.txt"
-        mkdir -p "$(Build.ArtifactStagingDirectory)"
-        git diff --name-only --diff-filter=ACMR HEAD~1 HEAD -- 'src/stored_procedure/*.sql' > "$changed_file" || true
-        if [ ! -s "$changed_file" ]; then
-          echo "No SQL diff detected against the previous commit; scanning src/stored_procedure instead"
-          find src/stored_procedure -type f -name '*.sql' > "$changed_file"
-        fi
-        echo "Changed stored procedure SQL files:"
-        cat "$changed_file"
-      displayName: Identify changed stored procedure SQL files via git diff
-    - script: |
-        set -euo pipefail
-        mapfile -t sql_files < "$(Build.ArtifactStagingDirectory)/changed-sql-files.txt"
-        if [ ${#sql_files[@]} -eq 0 ]; then
-          echo "No changed SQL files to validate"
-          exit 0
-        fi
-        python pipelines/scripts/validate_sql.py "${sql_files[@]}"
-      displayName: Validate changed DB2 SQL files
-    - script: |
-        set -euo pipefail
-        mapfile -t sql_files < "$(Build.ArtifactStagingDirectory)/changed-sql-files.txt"
-        mkdir -p "$(Build.ArtifactStagingDirectory)/prepared"
-        for sql_file in "${sql_files[@]}"; do
-          output_file="$(Build.ArtifactStagingDirectory)/prepared/$(basename "$sql_file")"
-          python pipelines/scripts/prepare_fb80.py "$sql_file" "$output_file"
-        done
-      displayName: Prepare changed SQL files as EBCDIC FB80
-    - task: UniversalPackages@0
-      displayName: Publish prepared SQL to Azure Artifacts
-      inputs:
-        command: publish
-        publishDirectory: $(Build.ArtifactStagingDirectory)/prepared
-        feedsToUsePublish: internal
-        vstsFeedPublish: $(artifactsFeed)
-        vstsFeedPackagePublish: $(preparedSqlPackage)
-        versionOption: patch
-        packagePublishDescription: Prepared FB80 SQL files for mainframe deployment
-
 - stage: Deploy
   displayName: Mainframe deployment
-  dependsOn: Validate
-  condition: succeeded()
   jobs:
   - job: DeployToMainframe
     pool:
@@ -148,7 +90,7 @@ stages:
       env:
         MAINFRAME_PASSWORD: $(MAINFRAME_PASSWORD)
     - script: |
-        echo "Azure DevOps pipeline triggered successfully"
+        echo "Azure DevOps CD pipeline triggered successfully"
         echo "Branch: $(Build.SourceBranch)"
         echo "Commit: $(Build.SourceVersion)"
       displayName: Verify GitHub trigger

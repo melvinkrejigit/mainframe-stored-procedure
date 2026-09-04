@@ -6,7 +6,7 @@ Initial repository setup for local development.
 
 - `src/stored_procedure/` — DB2 SQL source files.
 - `config/application.json` — non-secret connection and deployment configuration.
-- `pipelines/` — Azure DevOps pipeline definitions (`azure-pipelines.yml`, `rollback-pipeline.yml`).
+- `pipelines/` — Azure DevOps pipeline definitions (`ci-pipeline.yml`, `cd-pipeline.yml`, `rollback-pipeline.yml`).
 - `pipelines/scripts/` — Python/Bash automation used by the pipelines.
 - `pipelines/templates/` — reusable JCL templates rendered at pipeline run time.
 
@@ -23,9 +23,18 @@ Stored procedure source, JCL, Zowe integration, and Azure DevOps pipeline config
 Azure trigger test
 Automatic trigger test
 
+## CI and CD pipelines
+
+Deployment is split into two separate Azure DevOps pipelines so mainframe changes are never pushed automatically:
+
+- **`pipelines/ci-pipeline.yml`** (CI) triggers on every push/PR to `feature/*` and `develop`. Its `Validate` stage identifies changed stored procedure SQL via `git diff`, validates and prepares it as FB80 records, and publishes it as a versioned package (`prepared-sql`) to the Azure Artifacts feed `mf-devops-sql`.
+- **`pipelines/cd-pipeline.yml`** (CD) has `trigger: none` — it never runs automatically. After CI succeeds, go to this pipeline in Azure DevOps and click **Run pipeline** to deploy. It downloads the latest `prepared-sql` package from the feed, runs the mainframe version check, uploads the SQL to USS, submits the DSNTEP2 JCL, and runs the automated `AutomatedTest` stage.
+
+Both pipelines must be registered as separate pipeline definitions in Azure DevOps (**Pipelines → New pipeline**, pointing at each YAML file respectively).
+
 ## Pipeline validation
 
-The `Validate` stage first runs `git diff --name-only HEAD~1 HEAD -- 'src/stored_procedure/*.sql'` to identify only the stored procedure SQL files that changed in the triggering commit (falling back to a full scan of `src/stored_procedure` if no diff is found, e.g. on the first run). That changed-file list is then passed to `pipelines/scripts/validate_sql.py`, which requires non-empty SQL, a terminating `;`, and a supported DB2 statement keyword, and is reused by the FB80 preparation step below so only changed files are validated, prepared, and deployed.
+The CI `Validate` stage first runs `git diff --name-only HEAD~1 HEAD -- 'src/stored_procedure/*.sql'` to identify only the stored procedure SQL files that changed in the triggering commit (falling back to a full scan of `src/stored_procedure` if no diff is found, e.g. on the first run). That changed-file list is then passed to `pipelines/scripts/validate_sql.py`, which requires non-empty SQL, a terminating `;`, and a supported DB2 statement keyword, and is reused by the FB80 preparation step below so only changed files are validated, prepared, and packaged.
 
 ## USS upload configuration
 
@@ -37,7 +46,7 @@ The version-check stage reads `versionCheck.query` from `config/application.json
 
 After the upload, the pipeline reads `sqlDeployment.ussDirectory` and `sqlDeployment.jclTemplate` from `config/application.json`, renders the USS path of every prepared SQL file into `pipelines/templates/execute-sql.jcl`, and submits one generic DSNTEP2 job per SQL file. The template uses `SYSIN DD PATH='...'` with `RECFM=FB,LRECL=80`.
 
-After deployment, the `AutomatedTest` stage renders `versionCheck.testQuery` into `pipelines/templates/test-version.jcl`, submits it with Zowe, retrieves status and all spool content by job ID, parses `SYSPRINT`, and asserts that the result equals `versionCheck.expectedTestVersion` (`V2`).
+After deployment, the `AutomatedTest` stage (in `cd-pipeline.yml`) renders `versionCheck.testQuery` into `pipelines/templates/test-version.jcl`, submits it with Zowe, retrieves status and all spool content by job ID, parses `SYSPRINT`, and asserts that the result equals `versionCheck.expectedTestVersion` (`V2`).
 
 ## Independent rollback pipeline
 
