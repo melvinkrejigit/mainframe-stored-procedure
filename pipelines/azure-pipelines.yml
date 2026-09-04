@@ -13,7 +13,7 @@ pr:
 variables:
 - group: mainframe-devops
 - name: artifactsFeed
-  value: MF DevOps Project/melvinrejiuk01
+  value: melvinrejiuk01
 - name: preparedSqlPackage
   value: prepared-sql
 
