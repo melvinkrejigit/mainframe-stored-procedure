@@ -8,10 +8,14 @@
       "118": {
         "deployedAt": "2026-09-04T16:17:43.261778+00:00",
         "ussPath": "/z/z80145/118/current-timestamp.sql"
+      },
+      "120": {
+        "deployedAt": "2026-09-04T16:21:16.877168+00:00",
+        "ussPath": "/z/z80145/120/current-timestamp.sql"
       }
     },
-    "latestBuildId": "118",
-    "latestUssPath": "/z/z80145/118/current-timestamp.sql",
+    "latestBuildId": "120",
+    "latestUssPath": "/z/z80145/120/current-timestamp.sql",
     "sqlFile": "src/stored_procedure/current-timestamp.sql"
   }
 }
