@@ -32,10 +32,14 @@
       "130": {
         "deployedAt": "2026-09-04T16:41:22.620495+00:00",
         "ussPath": "/z/z80145/130/current-timestamp.sql"
+      },
+      "132": {
+        "deployedAt": "2026-09-04T16:44:40.566713+00:00",
+        "ussPath": "/z/z80145/132/current-timestamp.sql"
       }
     },
-    "latestBuildId": "130",
-    "latestUssPath": "/z/z80145/130/current-timestamp.sql",
+    "latestBuildId": "132",
+    "latestUssPath": "/z/z80145/132/current-timestamp.sql",
     "sqlFile": "src/stored_procedure/current-timestamp.sql"
   }
 }
