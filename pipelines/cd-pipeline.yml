@@ -1,8 +1,20 @@
-# CD: manually run after ci-pipeline.yml publishes a new prepared-sql package.
-# Downloads the latest published package from Azure Artifacts and deploys it
-# to the mainframe, then runs the automated version test.
+# CD: automatically queued when the CI pipeline (MF DevOps - CI) completes,
+# via the pipeline resource trigger below. CI does not wait for this to
+# finish - it is a separate, independently-queued run.
 trigger: none
 pr: none
+
+resources:
+  pipelines:
+  - pipeline: ciPipeline
+    source: MF DevOps - CI
+    trigger:
+      branches:
+        include:
+          - feature/*
+          - develop
+      stages:
+        - Validate
 
 variables:
 - group: mainframe-devops
