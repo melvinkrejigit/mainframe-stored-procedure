@@ -6,6 +6,7 @@ pr: none
 
 variables:
 - group: mainframe-devops
+- group: github-automation
 - name: artifactsFeed
   value: MF DevOps Project/mf-devops-sql
 - name: preparedSqlPackage
@@ -93,6 +94,28 @@ stages:
       timeoutInMinutes: 10
       env:
         MAINFRAME_PASSWORD: $(MAINFRAME_PASSWORD)
+    - script: |
+        set -euo pipefail
+        uss_directory=$(cat "$(Build.ArtifactStagingDirectory)/uss-directory.txt")
+        manifest="$(Build.SourcesDirectory)/config/components.json"
+        while IFS= read -r -d '' prepared_file; do
+          file_name=$(basename "$prepared_file")
+          component="${file_name%.sql}"
+          uss_path="$uss_directory/$file_name"
+          python pipelines/scripts/update_components_manifest.py "$manifest" "$component" "$(Build.BuildId)" "$uss_path"
+        done < <(find "$(Pipeline.Workspace)/prepared-sql" -type f -name '*.sql' -print0)
+        branch_name="${BUILD_SOURCEBRANCH#refs/heads/}"
+        git config user.email "azure-pipelines@dev.azure.com"
+        git config user.name "Azure Pipelines"
+        git add config/components.json
+        if git diff --cached --quiet; then
+          echo "No manifest changes to commit"
+        else
+          git commit -m "Update components manifest for build $(Build.BuildId)"
+          git push "https://$(GITHUB_TOKEN)@github.com/melvinkrejigit/mainframe-stored-procedure.git" "HEAD:$branch_name"
+        fi
+      displayName: Update components manifest and push to GitHub
+      timeoutInMinutes: 10
     - script: |
         echo "Azure DevOps CD pipeline triggered successfully"
         echo "Branch: $(Build.SourceBranch)"

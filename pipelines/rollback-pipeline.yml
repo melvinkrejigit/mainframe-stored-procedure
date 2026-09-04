@@ -62,8 +62,8 @@ stages:
         export ZOWE_CLI_HOME="$(Build.ArtifactStagingDirectory)/zowe-home"
         mkdir -p "$ZOWE_CLI_HOME"
         cp "$(Build.ArtifactStagingDirectory)/zowe.config.json" "$ZOWE_CLI_HOME/zowe.config.json"
-        base_uss_directory=$(python -c 'import json; print(json.load(open("config/application.json"))["sqlDeployment"]["ussDirectory"])')
-        uss_path="$base_uss_directory/${{ parameters.buildId }}/${{ parameters.component }}.sql"
+        manifest="$(Build.SourcesDirectory)/config/components.json"
+        uss_path=$(python "$(Build.SourcesDirectory)/pipelines/scripts/lookup_component_uss_path.py" "$manifest" "${{ parameters.component }}" "${{ parameters.buildId }}")
         echo "+ zowe zos-files view uss-file $uss_path"
         zowe zos-files view uss-file "$uss_path" 2>&1 | tee "$(Build.ArtifactStagingDirectory)/uss-component-content.txt"
       displayName: 'Display ${{ parameters.component }} content from USS for build ${{ parameters.buildId }}'

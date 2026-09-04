@@ -1,0 +1,8 @@
+{
+  "current-timestamp": {
+    "sqlFile": "src/stored_procedure/current-timestamp.sql",
+    "latestBuildId": null,
+    "latestUssPath": null,
+    "deployments": {}
+  }
+}

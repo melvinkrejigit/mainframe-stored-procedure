@@ -56,12 +56,32 @@ Rollback is intentionally separate from the CI/CD pipelines. The file `pipelines
 - `Build ID of the previously deployed CD run to roll back` — the numeric run ID of the `MF DevOps - CD` run being rolled back. The pipeline calls the Azure DevOps REST API (using the `ADO_PAT` secret from the `ado-automation` variable group) to confirm that build exists and prints its pipeline name/status/result before continuing; it fails fast if the build ID is missing or not found.
 - `Stored procedure component to roll back` — a dropdown of known components (currently just `current-timestamp`; add new entries here as new stored procedures are added under `src/stored_procedure/`).
 
-After verifying the build ID and logging the selected component, the pipeline reads `sqlDeployment.ussDirectory` from `config/application.json`, builds the same build-specific path CD uploaded to (`<ussDirectory>/<buildId>/<component>.sql`), and runs `zowe zos-files view uss-file` to print that exact deployed file's contents in the run log - so you can confirm what's currently on USS for that build/component before rolling back. It then submits the reusable `pipelines/templates/rollback-date.jcl` exactly as before. The rollback query comes from `rollback.query` in `config/application.json` and currently selects `CURRENT DATE` from `SYSIBM.SYSDUMMY1`. The job ID, status response, full spool response, and pipe-delimited `SYSPRINT` value are printed in the run log.
+After verifying the build ID and logging the selected component, the pipeline looks up the recorded USS path for that exact component/build combination in `config/components.json` (via `pipelines/scripts/lookup_component_uss_path.py`) and runs `zowe zos-files view uss-file` to print that deployed file's contents in the run log - so you can confirm what's currently on USS before rolling back. It fails clearly if that component was never deployed at that build ID. It then submits the reusable `pipelines/templates/rollback-date.jcl` exactly as before. The rollback query comes from `rollback.query` in `config/application.json` and currently selects `CURRENT DATE` from `SYSIBM.SYSDUMMY1`. The job ID, status response, full spool response, and pipe-delimited `SYSPRINT` value are printed in the run log.
+
+## Components deployment manifest
+
+`config/components.json` tracks, per component, every build ID it was deployed at and the exact USS path used, e.g.:
+
+```json
+{
+  "current-timestamp": {
+    "sqlFile": "src/stored_procedure/current-timestamp.sql",
+    "latestBuildId": "172",
+    "latestUssPath": "/z/z80145/172/current-timestamp.sql",
+    "deployments": {
+      "172": { "ussPath": "/z/z80145/172/current-timestamp.sql", "deployedAt": "2026-09-04T14:30:00+00:00" }
+    }
+  }
+}
+```
+
+After every successful `cd-pipeline.yml` deployment, the `Update components manifest and push to GitHub` step calls `pipelines/scripts/update_components_manifest.py` for each deployed file, then commits and pushes the updated `config/components.json` straight back to the branch it ran from, using a `GITHUB_TOKEN` secret. The rollback pipeline reads this same file to resolve the exact USS path for a given `buildId`/`component`, instead of reconstructing it - so rollback lookups are based on what was actually recorded during deployment, not assumptions about naming/paths.
 
 Create Azure DevOps variable groups with these names:
 
 - `mainframe-devops` — `MAINFRAME_PASSWORD` (secret variable).
 - `ado-automation` — `ADO_PAT` (secret variable; a PAT scoped to **Build: Read & execute**, also used by `ci-pipeline.yml` to queue the CD pipeline).
+- `github-automation` — `GITHUB_TOKEN` (secret variable; a GitHub PAT with `repo` scope, used by `cd-pipeline.yml` to commit and push `config/components.json` after each deployment).
 
 Host, port, and user ID are configured in `config/application.json`. `MAINFRAME_PASSWORD` is intentionally the only mainframe-related Azure variable because passwords must not be committed to GitHub.
 
