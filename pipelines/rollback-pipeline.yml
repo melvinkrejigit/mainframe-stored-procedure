@@ -1,4 +1,4 @@
-# This pipeline is intentionally manual and independent of azure-pipelines.yml.
+# This pipeline is intentionally manual and independent of ci-pipeline.yml/cd-pipeline.yml.
 trigger: none
 pr: none
 
@@ -10,9 +10,20 @@ parameters:
   values:
     - Yes
     - No
+- name: buildId
+  displayName: Build ID of the previously deployed CD run to roll back
+  type: string
+  default: ''
+- name: component
+  displayName: Stored procedure component to roll back
+  type: string
+  default: current-timestamp
+  values:
+    - current-timestamp
 
 variables:
 - group: mainframe-devops
+- group: ado-automation
 
 stages:
 - stage: Rollback
@@ -24,6 +35,25 @@ stages:
       name: SelfHosted-Mainframe
     steps:
     - checkout: self
+    - script: |
+        set -euo pipefail
+        build_id="${{ parameters.buildId }}"
+        if [ -z "$build_id" ]; then
+          echo "##vso[task.logissue type=error]No buildId parameter provided. Re-run the pipeline and enter the CD build ID being rolled back."
+          exit 1
+        fi
+        echo "Looking up build $build_id in Azure DevOps to confirm it exists..."
+        response=$(curl -s -u ":$(ADO_PAT)" "https://dev.azure.com/melvinrejiuk01/MF%20DevOps%20Project/_apis/build/builds/$build_id?api-version=7.1")
+        build_status=$(python -c "import json,sys; d=json.loads(sys.argv[1]); print(d.get('status','unknown'))" "$response")
+        build_result=$(python -c "import json,sys; d=json.loads(sys.argv[1]); print(d.get('result','unknown'))" "$response")
+        build_def=$(python -c "import json,sys; d=json.loads(sys.argv[1]); print(d.get('definition',{}).get('name','unknown'))" "$response")
+        if [ "$build_status" = "unknown" ] && [ "$build_result" = "unknown" ]; then
+          echo "##vso[task.logissue type=error]Build $build_id was not found in project 'MF DevOps Project'."
+          exit 1
+        fi
+        echo "Build $build_id: pipeline='$build_def' status='$build_status' result='$build_result'"
+        echo "Rolling back component: ${{ parameters.component }}"
+      displayName: Verify build ID and selected component
     - script: |
         set -euo pipefail
         app_file="$(Build.SourcesDirectory)/config/application.json"
@@ -48,7 +78,7 @@ stages:
         echo "+ python pipelines/scripts/parse_sysprint_value.py job-log.json"
         rollback_date=$(python "$(Build.SourcesDirectory)/pipelines/scripts/parse_sysprint_value.py" "$(Build.ArtifactStagingDirectory)/rollback/job-log.json")
         echo "Rollback test date returned by SYSPRINT: $rollback_date"
-      displayName: Submit rollback date JCL and read SYSPRINT
+      displayName: 'Submit rollback JCL for ${{ parameters.component }} and read SYSPRINT'
       timeoutInMinutes: 10
       env:
         MAINFRAME_PASSWORD: $(MAINFRAME_PASSWORD)

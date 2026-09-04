@@ -50,15 +50,20 @@ After deployment, the `AutomatedTest` stage (in `cd-pipeline.yml`) renders `vers
 
 ## Independent rollback pipeline
 
-Rollback is intentionally separate from the normal deployment pipeline. The file `pipelines/rollback-pipeline.yml` has no push or pull-request trigger, so it can be run manually days later without making the deployment pipeline wait. In Azure DevOps, create a second pipeline from this YAML and choose **Run pipeline**. Set `Rollback needed?` to `Yes` to submit the reusable `pipelines/templates/rollback-date.jcl`; set it to `No` to skip the mainframe operation. The rollback query comes from `rollback.query` in `config/application.json` and currently selects `CURRENT DATE` from `SYSIBM.SYSDUMMY1`. The job ID, status response, full spool response, and pipe-delimited `SYSPRINT` value are printed in the run log.
+Rollback is intentionally separate from the CI/CD pipelines. The file `pipelines/rollback-pipeline.yml` has no push or pull-request trigger, so it can be run manually days later without making CI/CD wait. In Azure DevOps, create a pipeline from this YAML and choose **Run pipeline**. It prompts for three parameters:
 
-The automated V2 test runs after the deployment stage completes successfully.
+- `Rollback needed?` (`Yes`/`No`) — set to `Yes` to actually submit the mainframe rollback; `No` skips it.
+- `Build ID of the previously deployed CD run to roll back` — the numeric run ID of the `MF DevOps - CD` run being rolled back. The pipeline calls the Azure DevOps REST API (using the `ADO_PAT` secret from the `ado-automation` variable group) to confirm that build exists and prints its pipeline name/status/result before continuing; it fails fast if the build ID is missing or not found.
+- `Stored procedure component to roll back` — a dropdown of known components (currently just `current-timestamp`; add new entries here as new stored procedures are added under `src/stored_procedure/`).
 
-Create an Azure DevOps variable group named `mainframe-devops` or add pipeline variables with these names:
+After verifying the build ID and logging the selected component, the pipeline submits the reusable `pipelines/templates/rollback-date.jcl` exactly as before. The rollback query comes from `rollback.query` in `config/application.json` and currently selects `CURRENT DATE` from `SYSIBM.SYSDUMMY1`. The job ID, status response, full spool response, and pipe-delimited `SYSPRINT` value are printed in the run log.
 
-- `MAINFRAME_PASSWORD`: secret variable
+Create Azure DevOps variable groups with these names:
 
-Host, port, and user ID are configured in `config/application.json`. `MAINFRAME_PASSWORD` is intentionally the only Azure variable because passwords must not be committed to GitHub.
+- `mainframe-devops` — `MAINFRAME_PASSWORD` (secret variable).
+- `ado-automation` — `ADO_PAT` (secret variable; a PAT scoped to **Build: Read & execute**, also used by `ci-pipeline.yml` to queue the CD pipeline).
+
+Host, port, and user ID are configured in `config/application.json`. `MAINFRAME_PASSWORD` is intentionally the only mainframe-related Azure variable because passwords must not be committed to GitHub.
 
 The pipeline creates a temporary Zowe config during the run. Do not commit `~/.zowe/zowe.config.json`, usernames, or passwords to GitHub. Rotate the password that was shared in chat because it is now exposed.
 
